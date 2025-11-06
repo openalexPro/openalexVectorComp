@@ -1,0 +1,33 @@
+# 1. Install build dependencies
+brew install cmake protobuf jq
+
+# 2. Install Rust (if not already)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source ~/.cargo/env
+
+# 3. Build and install the Metal-enabled router
+cargo install \
+	--git https://github.com/huggingface/text-embeddings-inference \
+	text-embeddings-router \
+	--features metal \
+	--locked
+
+# 4. Run it on port 8080 with a test model (CPU or GPU logs will show)
+~/.cargo/bin/text-embeddings-router --model-id intfloat/e5-base-v2 --port 8080 &
+PID=$!
+sleep 8 # give it time to load the model
+
+# 5. Test a sample embedding (expect 768 numbers for e5-base-v2)
+curl -s http://localhost:8080/embed \
+	-H "Content-Type: application/json" \
+	-d '{"inputs":["Biodiversity loss affects ecosystem services."]}' | jq '.[0] | length'
+
+# 6. Check backend (Metal vs CPU)
+#    You should see "Inference backend: Torch (Metal)" if GPU acceleration is active
+grep -i "Inference backend" ~/.cargo/bin/../* || echo "Look in the router's console output above."
+
+# Alternatively, query the running process logs directly:
+lsof -p $PID | grep metal || echo "If no 'metal' files show up, it's probably CPU."
+
+# 7. Kill the router after testing
+kill $PID

@@ -1,0 +1,37 @@
+Package: openalexAutoTag
+Type: Package
+Title: Auto-tagging via TEI Embeddings and Qdrant (Prototype-Margin + Ridge Logistic)
+Version: 0.1.0
+Authors@R: c(
+    person(given = "Rainer", family = "Krug", role = c("aut", "cre"), email = "you@example.org"),
+    person(given = "ChatGPT", family = "Assistant", role = "ctb")
+  )
+Description: R-first orchestration for auto-tagging based on text embeddings served by
+    a TEI (Text Embeddings Inference) server and vector search in Qdrant.
+    Provides prototype-margin scoring, ridge logistic classification, simple ensembling,
+    calibration/threshold selection, and utilities to ingest/query Qdrant.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Depends: R (>= 4.1.0)
+Imports:
+    httr2,
+    jsonlite,
+    tibble,
+    dplyr,
+    purrr,
+    glmnet,
+    arrow,
+    stats,
+    utils
+Suggests:
+    knitr,
+    rmarkdown,
+    duckdb,
+    DBI,
+    yardstick,
+    pROC
+VignetteBuilder: knitr
+URL: https://example.org/autotagr
+BugReports: https://example.org/autotagr/issues
+RoxygenNote: 7.3.3
