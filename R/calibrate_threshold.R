@@ -1,44 +1,250 @@
-#' Calibrate a binary decision threshold by sweeping score quantiles
+#' Calibrate threshold from Parquet scores by streaming batches
 #'
-#' Evaluates candidate thresholds derived from score quantiles using either the
-#' F1-score or precision-at-recall objective. Returns the best-performing
-#' threshold along with diagnostic metrics.
+#' Sweeps candidate thresholds over scores stored in a Parquet dataset without
+#' loading all rows into memory. Uses two passes: first to determine the score
+#' range on the labeled subset; second to accumulate confusion counts across a
+#' fixed grid of thresholds. Returns the best threshold per the chosen metric.
 #'
-#' @param target Binary reference labels (`0/1`).
-#' @param scores Numeric scores where larger values indicate the positive class.
-#' @param metric Optimisation target: `"f1"` (default) or `"precision_at_recall"`.
+#' You can provide labels either as two vectors of ids (`included`/`excluded`)
+#' or as a separate labels Parquet with columns `id` and `label` (`0/1`).
+#'
+#' @param scores_parquet Path to a Parquet dataset (file or directory) with at
+#'   least columns `id` and the score column.
+#' @param score_col Name of the score column to calibrate (e.g., "ensemble",
+#'   "relevance_score", or "margin").
+#' @param included Optional character vector of positive ids (label `1`).
+#' @param excluded Optional character vector of negative ids (label `0`).
+#' @param labels_parquet Optional Parquet dataset path with columns `id` and
+#'   `label` (`0/1`). If provided, it is collected in-memory and matched on `id`.
+#'   Prefer this when the labeled set is reasonably small.
+#' @param metric Optimisation target: `"f1"` (default) or
+#'   `"precision_at_recall"`.
 #' @param recall_min Minimum recall required when `metric = "precision_at_recall"`.
+#' @param thresholds Optional numeric vector of thresholds to evaluate. If
+#'   `NULL`, a regular grid between observed min/max is used (see
+#'   `n_thresholds`).
+#' @param n_thresholds Number of thresholds to generate when `thresholds` is
+#'   `NULL` (default `1001`).
+#' @param batch_size Approximate Arrow scan batch size.
+#' @param verbose Logical; print progress messages.
 #'
 #' @return List containing the selected threshold (`th`) and the associated
 #'   `precision`, `recall`, and `f1` values.
 #'
 #' @examples
-#' set.seed(1)
-#' y <- sample(0:1, 200, replace = TRUE)
-#' s <- y * runif(200, 0.6, 1) + (1 - y) * runif(200, 0, 0.4)
-#' calibrate_threshold(y, s, metric = "f1")
+#' \dontrun{
+#' best <- calibrate_threshold_parquet(
+#'   scores_parquet = "output/scores/",
+#'   score_col = "ensemble",
+#'   included = c("work1","work2"),
+#'   excluded = c("work3","work4"),
+#'   batch_size = 200000
+#' )
+#' best$th
+#' }
 #'
-#' @importFrom stats quantile median
+#' @importFrom arrow open_dataset Scanner
+#' @importFrom dplyr all_of
 #' @export
-calibrate_threshold <- function(target, scores, metric = c("f1", "precision_at_recall"), recall_min = 0.8) {
-  metric <- match.arg(metric)
-  probs <- seq(0, 1, by = 0.001)
-  ths <- as.numeric(stats::quantile(scores, probs = probs, na.rm = TRUE))
-  best <- list(th = stats::median(scores, na.rm = TRUE), score = -Inf,
-               precision = NA_real_, recall = NA_real_, f1 = NA_real_)
-  for (th in ths) {
-    pred <- as.integer(scores >= th)
-    tp <- sum(pred == 1 & target == 1); fp <- sum(pred == 1 & target == 0)
-    fn <- sum(pred == 0 & target == 1)
-    precision <- if ((tp + fp) > 0) tp / (tp + fp) else 0
-    recall <- if ((tp + fn) > 0) tp / (tp + fn) else 0
-    f1 <- if ((precision + recall) > 0) 2 * precision * recall / (precision + recall) else 0
-    keep <- switch(metric,
-                   f1 = f1,
-                   precision_at_recall = if (recall >= recall_min) precision else -Inf)
-    if (keep > best$score) best <- list(th = th, score = keep,
-                                        precision = precision, recall = recall, f1 = f1)
+calibrate_threshold <- function(
+  scores_parquet,
+  score_col,
+  included = NULL,
+  excluded = NULL,
+  labels_parquet = NULL,
+  metric = c("f1", "precision_at_recall"),
+  recall_min = 0.8,
+  thresholds = NULL,
+  n_thresholds = 1001,
+  batch_size = 100000,
+  verbose = TRUE
+) {
+  included <- read.csv(included)$id
+  excluded <- read.csv(excluded)$id
+  stopifnot(is.character(score_col), length(score_col) == 1)
+  if (is.null(labels_parquet)) {
+    if (is.null(included) || is.null(excluded)) {
+      stop(
+        "Provide either `included` and `excluded` id vectors, or `labels_parquet`."
+      )
+    }
+    included <- unique(included)
+    excluded <- unique(excluded)
   }
-  best
-}
 
+  metric <- match.arg(metric)
+
+  # Optional labels from parquet (collected in-memory; assumed small)
+  labels_df <- NULL
+  if (!is.null(labels_parquet)) {
+    lab_ds <- arrow::open_dataset(labels_parquet)
+    lab_cols <- c("id", "label")
+    if (!all(lab_cols %in% names(lab_ds))) {
+      stop("`labels_parquet` must have columns: id, label")
+    }
+    labels_df <- dplyr::collect(arrow::Scanner$create(
+      lab_ds,
+      columns = lab_cols
+    )$ToTable())
+  }
+
+  ds <- arrow::open_dataset(scores_parquet)
+  if (!all(c("id", score_col) %in% names(ds))) {
+    stop("`scores_parquet` must contain columns `id` and `", score_col, "`.")
+  }
+
+  # Helper to attach labels to a batch data.frame and filter to labeled rows
+  attach_labels <- function(df) {
+    if (!is.null(labels_df)) {
+      df <- merge(
+        df[, c("id", score_col)],
+        labels_df,
+        by = "id",
+        all.x = FALSE,
+        all.y = FALSE
+      )
+      df <- df[!is.na(df$label), , drop = FALSE]
+      df$label <- as.integer(df$label)
+      return(df)
+    }
+    keep <- df$id %in% included | df$id %in% excluded
+    if (!any(keep)) {
+      return(df[0, , drop = FALSE])
+    }
+    df <- df[keep, c("id", score_col), drop = FALSE]
+    df$label <- ifelse(df$id %in% included, 1L, 0L)
+    df
+  }
+
+  # First pass: get min/max over labeled subset (if thresholds not given)
+  if (is.null(thresholds)) {
+    if (verbose) {
+      message("[calib] First pass: computing score range...")
+    }
+    s_min <- Inf
+    s_max <- -Inf
+    reader <- arrow::Scanner$create(
+      ds,
+      columns = c("id", score_col),
+      batch_size = as.integer(batch_size)
+    )$ToRecordBatchReader()
+    repeat {
+      batch <- reader$read_next_batch()
+      if (is.null(batch)) {
+        break
+      }
+      df <- as.data.frame(batch, stringsAsFactors = FALSE)
+      if (!nrow(df)) {
+        next
+      }
+      df <- attach_labels(df)
+      if (!nrow(df)) {
+        next
+      }
+      s <- df[[score_col]]
+      s_min <- min(s_min, min(s, na.rm = TRUE))
+      s_max <- max(s_max, max(s, na.rm = TRUE))
+    }
+    if (!is.finite(s_min) || !is.finite(s_max)) {
+      stop("No labeled rows found in scores dataset.")
+    }
+    thresholds <- seq(s_min, s_max, length.out = n_thresholds)
+  }
+
+  # Second pass: accumulate counts across thresholds
+  if (verbose) {
+    message(
+      "[calib] Second pass: sweeping ",
+      length(thresholds),
+      " thresholds..."
+    )
+  }
+  tp <- numeric(length(thresholds))
+  fp <- numeric(length(thresholds))
+  fn <- numeric(length(thresholds))
+
+  reader <- arrow::Scanner$create(
+    ds,
+    columns = c("id", score_col),
+    batch_size = as.integer(batch_size)
+  )$ToRecordBatchReader()
+
+  batch_idx <- 0L
+  repeat {
+    batch <- reader$read_next_batch()
+    if (is.null(batch)) {
+      break
+    }
+    df <- as.data.frame(batch, stringsAsFactors = FALSE)
+    if (!nrow(df)) {
+      next
+    }
+    df <- attach_labels(df)
+    if (!nrow(df)) {
+      next
+    }
+
+    scores <- df[[score_col]]
+    labels <- as.integer(df$label)
+    keep <- is.finite(scores) & !is.na(labels)
+    if (!any(keep)) {
+      next
+    }
+    scores <- scores[keep]
+    labels <- labels[keep]
+
+    o <- order(scores)
+    scores_s <- scores[o]
+    labels_s <- labels[o]
+    n <- length(scores_s)
+    if (n == 0) {
+      next
+    }
+    # cumulative positives from the end (suffix sums)
+    pos_suffix <- rev(cumsum(rev(labels_s)))
+    # map thresholds to first index with score >= th
+    idx <- findInterval(thresholds, scores_s) + 1L
+    idx[idx > n] <- n + 1L
+
+    # values when idx in [1..n]
+    sel <- idx <= n
+    tp_batch <- numeric(length(idx))
+    tot_suf <- numeric(length(idx))
+    tp_batch[sel] <- pos_suffix[idx[sel]]
+    tot_suf[sel] <- (n - idx[sel] + 1L)
+    # idx == n+1 => no predicted positives
+    tp <- tp + tp_batch
+    fp <- fp + (tot_suf - tp_batch)
+    fn <- fn + (sum(labels_s) - tp_batch)
+
+    batch_idx <- batch_idx + 1L
+    if (verbose && (batch_idx %% 10L == 0L)) {
+      message("[calib] processed ", batch_idx, " batches...")
+    }
+  }
+
+  precision <- ifelse((tp + fp) > 0, tp / (tp + fp), 0)
+  recall <- ifelse((tp + fn) > 0, tp / (tp + fn), 0)
+  f1 <- ifelse(
+    (precision + recall) > 0,
+    2 * precision * recall / (precision + recall),
+    0
+  )
+
+  score_vec <- switch(
+    metric,
+    f1 = f1,
+    precision_at_recall = ifelse(recall >= recall_min, precision, -Inf)
+  )
+  best_i <- which.max(score_vec)
+  list(
+    th = thresholds[best_i],
+    precision = precision[best_i],
+    recall = recall[best_i],
+    f1 = f1[best_i],
+    thresholds = thresholds,
+    precision_curve = precision,
+    recall_curve = recall,
+    f1_curve = f1
+  )
+}

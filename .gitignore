@@ -2,3 +2,10 @@
 .Rhistory
 .RData
 .Ruserdata
+inst/doc
+**/.quarto/
+inst/Install _text-embeddings-inference
+.gitignore
+inst/ASR/*
+inst/examples/*
+.DS_Store

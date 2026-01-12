@@ -9,13 +9,13 @@ cos_sim(a, b)
 \arguments{
 \item{a}{Numeric vector.}
 
-\item{b}{Numeric vector of the same length as `a`.}
+\item{b}{Numeric vector of the same length as \code{a}.}
 }
 \value{
 Scalar cosine similarity.
 }
 \description{
-Computes the cosine similarity by normalizing each vector with `unit_row()`
+Computes the cosine similarity by normalizing each vector with \code{unit_row()}
 and summing the product of their elements.
 }
 \examples{

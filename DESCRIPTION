@@ -17,21 +17,23 @@ Depends: R (>= 4.1.0)
 Imports:
     httr2,
     jsonlite,
-    tibble,
     dplyr,
-    purrr,
     glmnet,
     arrow,
+    digest,
+    fastmatch,
+    yaml,
+    processx,
+    uwot,
     stats,
-    utils
+    utils,
+    ggplot2
 Suggests:
     knitr,
-    rmarkdown,
-    duckdb,
-    DBI,
-    yardstick,
-    pROC
-VignetteBuilder: knitr
+    quarto,
+    rmarkdown
+VignetteBuilder: knitr, quarto
 URL: https://example.org/autotagr
 BugReports: https://example.org/autotagr/issues
 RoxygenNote: 7.3.3
+Roxygen: list(markdown = TRUE)

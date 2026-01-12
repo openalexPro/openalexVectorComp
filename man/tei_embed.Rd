@@ -2,43 +2,61 @@
 % Please edit documentation in R/tei_embed.R
 \name{tei_embed}
 \alias{tei_embed}
-\title{Embed texts through a TEI `/embed` endpoint}
+\title{Stream a Parquet dataset, embed in batches, and write shard Parquets}
 \usage{
-tei_embed(texts, tei_url = "http://localhost:8080/embed", batch_size = 128)
+tei_embed(
+  project_dir = NULL,
+  tei_url = tei_default_embed_url(),
+  batch_size = 5000,
+  verbose = TRUE
+)
 }
 \arguments{
-\item{texts}{Character vector of texts to embed. Empty inputs return a
-0-row matrix; missing values are not supported.}
+\item{project_dir}{Project root directory. \strong{Must contain a parquet database with the
+corpus to be analyses.}
+Embeddings are written under
+\verb{project_dir/embeddings/model_id=<...>/shard=<n>/} as Parquet files with
+columns: \code{id}, \code{text_hash}, \code{V1..Vd}. Model metadata is also saved to
+\verb{project_dir/_tei_info.yaml}.}
 
-\item{tei_url}{Base URL to the TEI `/embed` endpoint
-(default `"http://localhost:8080/embed"`).}
+\item{tei_url}{TEI \verb{/embed} endpoint. Defaults to the URL saved by
+\code{\link[=tei_start]{tei_start()}} for the current session (if available), otherwise
+\code{"http://localhost:3000/embed"}.}
 
-\item{batch_size}{Maximum number of texts to send per HTTP request.}
+\item{batch_size}{Number of texts per TEI HTTP request.}
 }
 \value{
-A numeric matrix with one row per input text and one column per
-  embedding dimension.
+Invisibly the model-specific embeddings directory under
+\verb{project_dir/embeddings/model_id=<...>/}.
 }
 \description{
-Streams character vectors to a TEI service in fixed-size batches and binds
-the returned embeddings row-wise. This helper keeps requests small enough for
-typical TEI deployments while preserving the order of `texts` in the output.
+Processes a Parquet \emph{dataset} without loading it fully in memory.
+Reads Arrow record batches, builds \code{text} from \code{title} + \code{abstract},
+calls TEI in sub-batches, and writes out embeddings as many Parquet
+shard files under \code{output}.
 }
 \details{
-The function splits `texts` into consecutive groups of size `batch_size` and
-submits each chunk as JSON via [`httr2::request()`]. Responses are assumed to
-be lists of numeric vectors; each vector is cast to `numeric` and combined
-with `rbind`. When the TEI service returns vectors of inconsistent length the
-call will fail when `rbind` attempts to bind the results.
+Requires that the dataset has columns \code{id}, \code{title}, \code{abstract}.
+Vector dimension \code{d} is inferred from the first TEI response.
+
+Deduplication and resume safety:
+\itemize{
+\item Before embedding, we pre-scan the corpus once to compute a stable
+\code{text_hash} (xxhash64 of \code{title + "\\n\\n" + abstract}).
+\item We compare \verb{(id, text_hash)} against existing embeddings and only embed
+new or changed rows. If none are new/changed, the function aborts early.
+\item We also persist TEI server/model metadata in \verb{_tei_info.yaml} and abort if
+the model configuration differs between runs in the same model folder.
+}
 }
 \examples{
 \dontrun{
-sentences <- c(
-  "Open science accelerates discovery.",
-  "Controlled vocabularies improve recall."
+embeddings_dir <- tei_embed(
+  project_dir = "project/",
+  batch_size = 5000,
 )
-emb <- tei_embed(sentences)
-dim(emb)
+# Later:
+ds <- arrow::open_dataset(embeddings_dir)
 }
 
 }

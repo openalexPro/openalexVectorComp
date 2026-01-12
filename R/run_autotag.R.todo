@@ -1,0 +1,90 @@
+#' Streaming auto-tagging precompute pipeline (embed + distances)
+#'
+#' Builds a simple streaming pipeline using the base pipe operator (`|>`):
+#' 1) Embed a corpus Parquet dataset via [tei_embed_parquet()].
+#' 2) Compute ridge distances to a positive/negative set via [ridge_distance()].
+#' 3) Compute prototype margins via [prototype_margin()].
+#'
+#' All artifacts are written under a single base directory, and the base path
+#' is returned. No threshold calibration or tagging is performed here.
+#'
+#' @param corpus Path to a Parquet dataset (file or directory opened by
+#'   Arrow) with columns `id`, `title`, `abstract` to embed.
+#' @param included Character vector of positive ids.
+#' @param excluded Character vector of negative ids.
+#' @param base_dir Directory into which subfolders will be created:
+#'   `embeddings/`, `ridge/`, and `prototype_distances/`.
+#' @param tei_url TEI `/embed` endpoint passed to [tei_embed_parquet()].
+#' @param embed_batch_size Number of rows per TEI embedding request.
+#' @param score_batch_size Approximate Arrow scan batch size for scoring.
+#' @param s Lambda to use for ridge distances; one of `"lambda.min"` or
+#'   `"lambda.1se"`.
+#' @param verbose Logical; print progress messages.
+#'
+#' @return The `base_dir` (invisibly).
+#'
+#' @examples
+#' \dontrun{
+#' run_autotag(
+#'   corpus = "input/openalex_dataset/",
+#'   included = c("work1","work2"),
+#'   excluded = c("work3","work4"),
+#'   base_dir = "output/autotag_run/",
+#'   tei_url = "http://localhost:8080/embed"
+#' )
+#' }
+#'
+#' @seealso [tei_embed_parquet()], [ridge_distance()], [prototype_margin()]
+#' @export
+run_autotag <- function(
+  corpus,
+  included,
+  excluded,
+  base_dir,
+  tei_url = "http://localhost:3000/embed",
+  embed_batch_size = 5000,
+  score_batch_size = 100000,
+  s = c("lambda.min", "lambda.1se"),
+  verbose = TRUE
+) {
+  s <- match.arg(s)
+  if (!dir.exists(base_dir)) {
+    dir.create(base_dir, recursive = TRUE)
+  }
+  embeds_dir <- file.path(base_dir, "embeddings")
+  ridge_dir <- file.path(base_dir, "ridge_distance")
+  proto_dir <- file.path(base_dir, "prototype_distance")
+
+  # 1) Embed
+  embeddings <- tei_embed(
+    corpus = corpus,
+    tei_url = tei_url,
+    batch_size = embed_batch_size,
+    embeds = embeds_dir,
+    verbose = verbose
+  )
+
+  # 2) Ridge distance
+  ridge_distance <-
+    ridge_distance(
+      embeddings = embeddings,
+      included = included,
+      excluded = excluded,
+      output = ridge_dir,
+      s = s,
+      batch_size = score_batch_size,
+      verbose = verbose
+    )
+
+  # 3) Prototype margin
+  prototype_distance <-
+    prototype_distance(
+      embeddings = embeddings,
+      included = included,
+      excluded = excluded,
+      output = proto_dir,
+      batch_size = score_batch_size,
+      verbose = verbose
+    )
+  return(invisible(base_dir))
+}

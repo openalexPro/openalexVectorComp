@@ -2,37 +2,77 @@
 % Please edit documentation in R/calibrate_threshold.R
 \name{calibrate_threshold}
 \alias{calibrate_threshold}
-\title{Calibrate a binary decision threshold by sweeping score quantiles}
+\title{Calibrate threshold from Parquet scores by streaming batches}
 \usage{
 calibrate_threshold(
-  target,
-  scores,
+  scores_parquet,
+  score_col,
+  included = NULL,
+  excluded = NULL,
+  labels_parquet = NULL,
   metric = c("f1", "precision_at_recall"),
-  recall_min = 0.8
+  recall_min = 0.8,
+  thresholds = NULL,
+  n_thresholds = 1001,
+  batch_size = 1e+05,
+  verbose = TRUE
 )
 }
 \arguments{
-\item{target}{Binary reference labels (`0/1`).}
+\item{scores_parquet}{Path to a Parquet dataset (file or directory) with at
+least columns \code{id} and the score column.}
 
-\item{scores}{Numeric scores where larger values indicate the positive class.}
+\item{score_col}{Name of the score column to calibrate (e.g., "ensemble",
+"relevance_score", or "margin").}
 
-\item{metric}{Optimisation target: `"f1"` (default) or `"precision_at_recall"`.}
+\item{included}{Optional character vector of positive ids (label \code{1}).}
 
-\item{recall_min}{Minimum recall required when `metric = "precision_at_recall"`.}
+\item{excluded}{Optional character vector of negative ids (label \code{0}).}
+
+\item{labels_parquet}{Optional Parquet dataset path with columns \code{id} and
+\code{label} (\code{0/1}). If provided, it is collected in-memory and matched on \code{id}.
+Prefer this when the labeled set is reasonably small.}
+
+\item{metric}{Optimisation target: \code{"f1"} (default) or
+\code{"precision_at_recall"}.}
+
+\item{recall_min}{Minimum recall required when \code{metric = "precision_at_recall"}.}
+
+\item{thresholds}{Optional numeric vector of thresholds to evaluate. If
+\code{NULL}, a regular grid between observed min/max is used (see
+\code{n_thresholds}).}
+
+\item{n_thresholds}{Number of thresholds to generate when \code{thresholds} is
+\code{NULL} (default \code{1001}).}
+
+\item{batch_size}{Approximate Arrow scan batch size.}
+
+\item{verbose}{Logical; print progress messages.}
 }
 \value{
-List containing the selected threshold (`th`) and the associated
-  `precision`, `recall`, and `f1` values.
+List containing the selected threshold (\code{th}) and the associated
+\code{precision}, \code{recall}, and \code{f1} values.
 }
 \description{
-Evaluates candidate thresholds derived from score quantiles using either the
-F1-score or precision-at-recall objective. Returns the best-performing
-threshold along with diagnostic metrics.
+Sweeps candidate thresholds over scores stored in a Parquet dataset without
+loading all rows into memory. Uses two passes: first to determine the score
+range on the labeled subset; second to accumulate confusion counts across a
+fixed grid of thresholds. Returns the best threshold per the chosen metric.
+}
+\details{
+You can provide labels either as two vectors of ids (\code{included}/\code{excluded})
+or as a separate labels Parquet with columns \code{id} and \code{label} (\code{0/1}).
 }
 \examples{
-set.seed(1)
-y <- sample(0:1, 200, replace = TRUE)
-s <- y * runif(200, 0.6, 1) + (1 - y) * runif(200, 0, 0.4)
-calibrate_threshold(y, s, metric = "f1")
+\dontrun{
+best <- calibrate_threshold_parquet(
+  scores_parquet = "output/scores/",
+  score_col = "ensemble",
+  included = c("work1","work2"),
+  excluded = c("work3","work4"),
+  batch_size = 200000
+)
+best$th
+}
 
 }

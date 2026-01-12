@@ -23,11 +23,12 @@ curl -s http://localhost:8080/embed \
 	-d '{"inputs":["Biodiversity loss affects ecosystem services."]}' | jq '.[0] | length'
 
 # 6. Check backend (Metal vs CPU)
-#    You should see "Inference backend: Torch (Metal)" if GPU acceleration is active
-grep -i "Inference backend" ~/.cargo/bin/../* || echo "Look in the router's console output above."
 
-# Alternatively, query the running process logs directly:
+# Query the running process logs directly:
 lsof -p $PID | grep metal || echo "If no 'metal' files show up, it's probably CPU."
 
 # 7. Kill the router after testing
 kill $PID
+
+## sbert as in ASReview:
+text-embeddings-router --model-id sentence-transformers/all-mpnet-base-v2
