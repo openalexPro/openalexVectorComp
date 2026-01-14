@@ -8,6 +8,8 @@ tei_embed(
   project_dir = NULL,
   tei_url = tei_default_embed_url(),
   batch_size = 5000,
+  prune = FALSE,
+  delete_existing = FALSE,
   verbose = TRUE
 )
 }
@@ -24,6 +26,9 @@ columns: \code{id}, \code{text_hash}, \code{V1..Vd}. Model metadata is also save
 \code{"http://localhost:3000/embed"}.}
 
 \item{batch_size}{Number of texts per TEI HTTP request.}
+
+\item{delete_existing}{IF \code{TRUE}, old embeddings will be deleted before processing, if \code{FALSE}
+new ones will be added, existing ones will be skipped or updated (if the text changed).}
 }
 \value{
 Invisibly the model-specific embeddings directory under

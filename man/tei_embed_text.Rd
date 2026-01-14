@@ -4,7 +4,11 @@
 \alias{tei_embed_text}
 \title{Embed texts through a TEI \verb{/embed} endpoint}
 \usage{
-tei_embed_text(texts, tei_url = tei_default_embed_url())
+tei_embed_text(
+  texts,
+  tei_url = tei_default_embed_url(),
+  max_batch_size = tei_info()$server$max_client_batch_size
+)
 }
 \arguments{
 \item{texts}{Character vector of texts to embed. Empty inputs return a
@@ -13,6 +17,9 @@ tei_embed_text(texts, tei_url = tei_default_embed_url())
 \item{tei_url}{Base URL to the TEI \verb{/embed} endpoint. Defaults to the URL
 saved by \code{\link[=tei_start]{tei_start()}} for the current session (if available), otherwise
 \code{"http://localhost:3000/embed"}.}
+
+\item{max_batch_size}{Maximum number of texts to send per request. Defaults
+to 128 to match the TEI limit.}
 }
 \value{
 A numeric matrix with one row per input text and one column per
@@ -20,7 +27,7 @@ embedding dimension.
 }
 \description{
 Sends character vector to a TEI service and returns the embeddings as matrix.
-This helper accepts a maximum of 128 text elements for processing.
+This helper chunks inputs to respect the TEI per-request limit.
 }
 \details{
 The function submits \code{texts} as JSON via \code{\link[httr2:request]{httr2::request()}}.

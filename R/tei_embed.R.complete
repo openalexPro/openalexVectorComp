@@ -15,6 +15,8 @@
 #'   `project_dir/embeddings/model_id=<...>/shard=<n>/` as Parquet files with
 #'   columns: `id`, `text_hash`, `V1..Vd`. Model metadata is also saved to
 #'   `project_dir/_tei_info.yaml`.
+#' @param prune If `TRUE`, the eexisting embeddings will be pruned to the ones in the
+#'   corpus.
 #' @param delete_existing IF `TRUE`, old embeddings will be deleted before processing, if `FALSE`
 #'   new ones will be added, existing ones will be skipped or updated (if the text changed).
 #' @return Invisibly the model-specific embeddings directory under
@@ -49,7 +51,6 @@
 #' @importFrom utils head
 #' @importFrom stats setNames
 #' @importFrom cli cli_progress_bar cli_progress_update cli_progress_done cli_alert_success
-#' @importFrom dplyr mutate filter
 #' @export
 tei_embed <- function(
   project_dir = NULL,
@@ -87,6 +88,7 @@ tei_embed <- function(
   if (!dir.exists(project_dir)) {
     dir.create(project_dir, recursive = TRUE)
   }
+
   emb_root <- file.path(project_dir, "embeddings")
   if (!dir.exists(emb_root)) {
     dir.create(emb_root, recursive = TRUE)
@@ -101,25 +103,10 @@ tei_embed <- function(
   }
   model_part <- gsub("/", "_", model_id, fixed = TRUE)
   model_dir <- file.path(emb_root, paste0("model_id=", model_part))
-
-  if (dir.exists(model_dir)) {
-    if (delete_existing) {
-      unlink(model_dir, recursive = TRUE)
-    } else {
-      stop(
-        "Embeddings dir `",
-        model_dir,
-        "` for this model exists.\n",
-        "To avoid inconsistencies, delete it or run with `delete_existing = TRUE`!"
-      )
-    }
+  if (!dir.exists(model_dir)) {
+    dir.create(model_dir, recursive = TRUE)
+    if (verbose) message("Created model output directory: ", model_dir)
   }
-
-  dir.create(model_dir, recursive = TRUE)
-  if (verbose) {
-    message("Created model output directory: ", model_dir)
-  }
-
   if (verbose) {
     message(
       "Using TEI model_id=",
@@ -128,6 +115,15 @@ tei_embed <- function(
       basename(model_dir),
       ")"
     )
+  }
+
+  file.exists(model_dir)
+  {
+    if (delete_existing) {
+      unlink(model_dir, recursive = TRUE)
+    } else {
+      stop()
+    }
   }
 
   # Prepare and write yaml file  -------------------------------------------
@@ -179,9 +175,27 @@ tei_embed <- function(
     if (verbose) message("Wrote TEI metadata to ", meta_path)
   }
 
-  # Do the Embedding pass --------------------------------------------------
+  # Also copy/write model YAML to project root ----
 
-  # Create a Scanner for the embedding pass --------------------------------
+  project_root <- normalizePath(project_dir, mustWork = FALSE)
+  proj_yaml <- file.path(project_root, "_tei_info.yaml")
+
+  # Prefer writing only if not identical, to reduce churn ----
+
+  ok_copy <- TRUE
+  if (file.exists(proj_yaml)) {
+    prev <- try(yaml::read_yaml(proj_yaml), silent = TRUE)
+    if (!inherits(prev, "try-error")) {
+      ok_copy <- !identical(prev, current_meta)
+    }
+  }
+  if (ok_copy) {
+    dir.create(dirname(proj_yaml), recursive = TRUE, showWarnings = FALSE)
+    yaml::write_yaml(current_meta, proj_yaml)
+    if (verbose) message("Wrote TEI metadata to project root: ", proj_yaml)
+  }
+
+  # Do the Embedding pass --------------------------------------------------
 
   reader <- arrow::Scanner$create(
     ds, # Dataset/Table/query
@@ -191,7 +205,7 @@ tei_embed <- function(
 
   # Prepare embedding progress -----------
 
-  total_to_embed <- nrow(ds)
+  total_to_embed <- length(todo_key)
   no_shards <- ceiling(total_to_embed / batch_size)
   shard_idx <- 0L
 
@@ -206,13 +220,7 @@ tei_embed <- function(
     )
   }
 
-  progress_id <- NULL
-  if (verbose && is.finite(no_shards) && no_shards > 0) {
-    progress_id <- cli::cli_progress_bar(
-      "Embedding new/changed texts",
-      total = no_shards
-    )
-  }
+  cli::cli_progress_bar("Embedding new/changed texts", total = no_shards)
   repeat {
     batch <- reader$read_next_batch()
     if (is.null(batch)) {
@@ -223,47 +231,28 @@ tei_embed <- function(
 
     df <- dplyr::collect(batch)
 
-    # Build markdown including id and hashes for chunking --------------------------
+    # Build text safely (handle NA)
+    title <- ifelse(is.na(df$title), "", df$title)
+    abstr <- ifelse(is.na(df$abstract), "", df$abstract)
+    text <- paste0("# ", title, "\n\n", abstr)
 
-    text <- df |>
-      dplyr::mutate(
-        id = ifelse(is.na(df$id), "", df$id),
-        title = ifelse(is.na(df$title), "", df$title),
-        abstract = ifelse(is.na(df$abstract), "", df$abstract)
-      ) |>
-      dplyr::filter(
-        !is.na(id) & nzchar(id),
-        nzchar(paste(title, abstract))
-      ) |>
-      dplyr::rowwise() |>
-      dplyr::mutate(
-        hash = digest::digest(
-          paste(id, title, abstract),
-          algo = "xxhash64",
-          serialize = FALSE
-        ),
-        text = paste(
-          paste("# id ", id, "|", hash),
-          "## Title",
-          title,
-          "## Abstract",
-          abstract,
-          sep = "\n\n"
-        ),
-        chunks = list(
-          ragnar::markdown_chunk(
-            text,
-            target_size = 100
-          )
-        )
-      ) |>
-      dplyr::select(
-        id,
-        hash,
-        chunks
-      ) |>
-      dplyr::ungroup() |>
-      tidyr::unnest(cols = c(chunks))
+    # Drop rows with missing id or empty text -------------------
+
+    keep <- (!is.na(df$id)) & nzchar(text)
+    if (!any(keep)) {
+      next
+    }
+    ids <- df$id[keep]
+    text <- text[keep]
+
+    # Compute hashes and filter to only todo keys --------------------------
+    browser()
+    text_hash <- vapply(
+      text,
+      function(x) digest::digest(x, algo = "xxhash64", serialize = FALSE),
+      character(1)
+    )
+    key <- paste0(as.character(ids), "||||", text_hash)
 
     if (verbose) {
       message(
@@ -271,76 +260,121 @@ tei_embed <- function(
         shard_idx + 1L,
         " of ",
         no_shards,
-        "..."
+        " (",
+        length(ids),
+        " items)..."
       )
     }
-
-    if (!is.null(progress_id)) {
-      cli::cli_progress_update(id = progress_id)
-    }
+    cli::cli_progress_update()
 
     # Call TEI in sub-requests ------------------
 
-    # text$embeddings <-
-    #   text$chunks,
-    #   function(chunks) {
-    #     embeddings <- tei_embed_text(
-    #       texts = text$text,
-    #       tei_url = tei_url,
-    #       max_batch_size = info$server$max_client_batch_size
-    #     )
-    #     return(split(embeddings, row(embeddings)))
-    #   }
-    # )
+    browser()
 
-    text <- cbind(
+    emb <- tei_embed_text(
       text,
-      tei_embed_text(
-        texts = text$text,
-        tei_url = tei_url,
-        max_batch_size = info$server$max_client_batch_size
-      )
-    )
+      tei_url
+    ) # matrix n x d
+
     # Build a shard data.frame: id + text_hash + V1..Vd ---------------------
+    shard <- data.frame(
+      id = ids,
+      text_hash = text_hash,
+      emb,
+      check.names = FALSE
+    )
 
     shard_idx <- shard_idx + 1L
-    shard_dir <- file.path(model_dir, sprintf("batch=%d", shard_idx))
+    shard_dir <- file.path(model_dir, sprintf("shard=%d", shard_idx))
     if (!dir.exists(shard_dir)) {
       dir.create(shard_dir, recursive = TRUE)
     }
+    path <- file.path(shard_dir, sprintf("part-%09d.parquet", shard_idx))
 
     # Write one shard per batch under Hive partition ---------------
 
-    arrow::write_dataset(
-      text,
-      path = shard_dir,
-      format = "parquet",
-      partitioning = "id"
-    )
-
+    arrow::write_parquet(shard, path)
     if (verbose) {
       message(
-        "Wrote batch #",
+        "Wrote shard #",
         shard_idx,
         " (",
-        nrow(text),
+        nrow(shard),
         " rows) to ",
         shard_dir
       )
     }
   }
-
-  if (!is.null(progress_id)) {
-    cli::cli_progress_done(id = progress_id)
-  }
+  cli::cli_progress_done()
   elapsed <- Sys.time() - start_time
   cli::cli_alert_success(sprintf(
-    "Done! Embedded %d new/changed works in %d batches in %s (%s per document).",
+    "Done! Embedded %d new/changed works in %d shards in %s.",
     total_to_embed,
     no_shards,
-    format(elapsed, digits = 2),
-    format(elapsed / no_total_to_embed, digits = 2)
+    format(elapsed, digits = 2)
   ))
+
+  if (prune) {
+    # Prune embeddings for works no longer present in the corpus (rewrite dataset) ---------------
+
+    pruned <- 0L
+    if (verbose) {
+      message("Checking for embeddings to prune (ids no longer in corpus) ...")
+    }
+    try(
+      {
+        emb_ds2 <- arrow::open_dataset(model_dir)
+        emb_ids <- emb_ds2 |>
+          dplyr::select(id) |>
+          dplyr::collect() |>
+          dplyr::pull(id) |>
+          as.character() |>
+          unique()
+        dangling <- setdiff(emb_ids, corpus_ids)
+        if (length(dangling)) {
+          if (verbose) {
+            message("Pruning ", length(dangling), " ids from embeddings ...")
+          }
+          tmp_dir <- file.path(
+            dirname(model_dir),
+            paste0(
+              basename(model_dir),
+              "_tmp_pruned_",
+              format(Sys.time(), "%Y%m%d%H%M%S")
+            )
+          )
+          filtered <- emb_ds2 |>
+            dplyr::filter(!(id %in% dangling))
+          arrow::write_dataset(
+            filtered,
+            tmp_dir,
+            format = "parquet",
+            partitioning = "shard"
+          )
+          # preserve metadata
+          if (file.exists(meta_path)) {
+            file.copy(
+              meta_path,
+              file.path(tmp_dir, "_tei_info.yaml"),
+              overwrite = TRUE
+            )
+          }
+          unlink(model_dir, recursive = TRUE, force = TRUE)
+          file.rename(tmp_dir, model_dir)
+          pruned <- length(dangling)
+        } else {
+          if (verbose) message("No pruning required.")
+        }
+      },
+      silent = TRUE
+    )
+    if (pruned > 0L) {
+      cli::cli_alert_success(sprintf(
+        "Pruned %d works no longer in corpus.",
+        pruned
+      ))
+    }
+  }
 
   invisible(model_dir)
 }

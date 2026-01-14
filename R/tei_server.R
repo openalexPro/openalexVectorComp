@@ -266,7 +266,7 @@ tei_info <- function(
   invisible(try(
     {
       t0 <- Sys.time()
-      emb <- tei_embed_text(c("hello"), tei_url = embed_url)
+      emb <- tei_embed_text(c("hello"), tei_url = embed_url, max_batch_size = 3)
       probe_dim <- ncol(emb)
       probe_ms <- as.numeric(difftime(Sys.time(), t0, units = "secs")) * 1000
     },

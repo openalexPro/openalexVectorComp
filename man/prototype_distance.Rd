@@ -6,9 +6,11 @@
 \usage{
 prototype_distance(
   project_dir,
+  embeddings_dir = "model_id=sentence-transformers_all-MiniLM-L6-v2",
   included,
   excluded,
-  batch_size = 10000,
+  workers = 2,
+  future_plan = "multisession",
   verbose = TRUE
 )
 }
@@ -20,12 +22,17 @@ Outputs are written under
 \code{id} and \code{margin}. The embeddings model metadata \verb{_tei_info.yaml} is also
 copied to \verb{project_dir/}.}
 
+\item{embeddings_dir}{Subfolder under \code{project_dir/embeddings} that contains
+the embeddings dataset.}
+
 \item{included}{Name of a csv file containing a column named \code{id} containing the \code{id} values that define the positive prototype.}
 
 \item{excluded}{Name of a csv file containing a column named \code{id} containing the \code{id} values that define the negative prototype.}
 
-\item{batch_size}{Approximate number of rows per Arrow scan batch when scoring
-the dataset (default \code{100000}).}
+\item{workers}{Number of parallel workers to use. Passed to
+\code{future::plan()} as \code{workers}.}
+
+\item{future_plan}{Future plan to use. Defaults to \code{"multisession"}.}
 }
 \value{
 Invisibly the model-specific output directory under
