@@ -25,9 +25,11 @@ least columns \code{id} and the score column.}
 \item{score_col}{Name of the score column to calibrate (e.g., "ensemble",
 "relevance_score", or "margin").}
 
-\item{included}{Optional character vector of positive ids (label \code{1}).}
+\item{included}{Path to a CSV file with a column \code{id} of positive examples
+(label \code{1}). Ignored when \code{labels_parquet} is provided.}
 
-\item{excluded}{Optional character vector of negative ids (label \code{0}).}
+\item{excluded}{Path to a CSV file with a column \code{id} of negative examples
+(label \code{0}). Ignored when \code{labels_parquet} is provided.}
 
 \item{labels_parquet}{Optional Parquet dataset path with columns \code{id} and
 \code{label} (\code{0/1}). If provided, it is collected in-memory and matched on \code{id}.
@@ -65,11 +67,11 @@ or as a separate labels Parquet with columns \code{id} and \code{label} (\code{0
 }
 \examples{
 \dontrun{
-best <- calibrate_threshold_parquet(
+best <- calibrate_threshold(
   scores_parquet = "output/scores/",
   score_col = "ensemble",
-  included = c("work1","work2"),
-  excluded = c("work3","work4"),
+  included = "included.csv",
+  excluded = "excluded.csv",
   batch_size = 200000
 )
 best$th

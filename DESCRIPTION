@@ -1,4 +1,4 @@
-Package: openalexAutoTag
+Package: openalexVectorComp
 Type: Package
 Title: Auto-tagging via TEI Embeddings and Qdrant (Prototype-Margin + Ridge Logistic)
 Version: 0.1.0
@@ -23,7 +23,6 @@ Imports:
     digest,
     fastmatch,
     yaml,
-    processx,
     uwot,
     stats,
     utils,
@@ -31,9 +30,11 @@ Imports:
 Suggests:
     knitr,
     quarto,
-    rmarkdown
+    rmarkdown,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
 VignetteBuilder: knitr, quarto
-URL: https://example.org/autotagr
-BugReports: https://example.org/autotagr/issues
+URL: https://example.org/openalexVectorComp
+BugReports: https://example.org/openalexVectorComp/issues
 RoxygenNote: 7.3.3
 Roxygen: list(markdown = TRUE)

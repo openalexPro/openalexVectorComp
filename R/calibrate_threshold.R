@@ -12,8 +12,10 @@
 #'   least columns `id` and the score column.
 #' @param score_col Name of the score column to calibrate (e.g., "ensemble",
 #'   "relevance_score", or "margin").
-#' @param included Optional character vector of positive ids (label `1`).
-#' @param excluded Optional character vector of negative ids (label `0`).
+#' @param included Path to a CSV file with a column `id` of positive examples
+#'   (label `1`). Ignored when `labels_parquet` is provided.
+#' @param excluded Path to a CSV file with a column `id` of negative examples
+#'   (label `0`). Ignored when `labels_parquet` is provided.
 #' @param labels_parquet Optional Parquet dataset path with columns `id` and
 #'   `label` (`0/1`). If provided, it is collected in-memory and matched on `id`.
 #'   Prefer this when the labeled set is reasonably small.
@@ -33,11 +35,11 @@
 #'
 #' @examples
 #' \dontrun{
-#' best <- calibrate_threshold_parquet(
+#' best <- calibrate_threshold(
 #'   scores_parquet = "output/scores/",
 #'   score_col = "ensemble",
-#'   included = c("work1","work2"),
-#'   excluded = c("work3","work4"),
+#'   included = "included.csv",
+#'   excluded = "excluded.csv",
 #'   batch_size = 200000
 #' )
 #' best$th
@@ -77,7 +79,10 @@ calibrate_threshold <- function(
   # Optional labels from parquet (collected in-memory; assumed small)
   labels_df <- NULL
   if (!is.null(labels_parquet)) {
-    lab_ds <- arrow::open_dataset(labels_parquet)
+    lab_ds <- arrow::open_dataset(
+      labels_parquet,
+      factory_options = list(exclude_invalid_files = TRUE)
+    )
     lab_cols <- c("id", "label")
     if (!all(lab_cols %in% names(lab_ds))) {
       stop("`labels_parquet` must have columns: id, label")
@@ -88,7 +93,10 @@ calibrate_threshold <- function(
     )$ToTable())
   }
 
-  ds <- arrow::open_dataset(scores_parquet)
+  ds <- arrow::open_dataset(
+    scores_parquet,
+    factory_options = list(exclude_invalid_files = TRUE)
+  )
   if (!all(c("id", score_col) %in% names(ds))) {
     stop("`scores_parquet` must contain columns `id` and `", score_col, "`.")
   }

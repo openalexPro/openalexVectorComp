@@ -1,0 +1,117 @@
+---
+title: "tei-server-operations"
+vignette: >
+  %\VignetteIndexEntry{tei-server-operations}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+knitr:
+  opts_chunk:
+    collapse: true
+    comment: "#>"
+    eval: false
+---
+
+# Purpose
+
+This vignette documents TEI server operations outside the package:
+
+- start and stop workflows,
+- health and info checks,
+- endpoint verification,
+- operational troubleshooting.
+
+`openalexVectorComp` no longer manages TEI process lifecycle internally.
+
+# Start TEI
+
+## Local binary
+
+```bash
+text-embeddings-router --model-id BAAI/bge-small-en-v1.5 --port 3000
+```
+
+## Alternative port
+
+```bash
+text-embeddings-router --model-id BAAI/bge-small-en-v1.5 --port 3001
+```
+
+# Verify service
+
+## Health
+
+```bash
+curl -s http://localhost:3000/health
+```
+
+## Info
+
+```bash
+curl -s http://localhost:3000/info
+```
+
+## Embed smoke test
+
+```bash
+curl -s -X POST http://localhost:3000/embed \
+  -H "Content-Type: application/json" \
+  -d '{"inputs":["hello world"]}'
+```
+
+# Use TEI endpoint in package
+
+```{r}
+library(openalexVectorComp)
+
+backend <- embedding_backend_config(
+  provider = "tei",
+  base_url = "http://localhost:3000"
+)
+
+emb <- embed_texts(
+  texts = c("Title: A\nAbstract: B", "Title: C\nAbstract: D"),
+  backend = backend
+)
+dim(emb)
+```
+
+# Process management (shell)
+
+If TEI is running in a terminal, stop with `Ctrl+C`.
+
+If running in background:
+
+```bash
+pkill -f text-embeddings-router
+```
+
+Or find PID and stop explicitly:
+
+```bash
+ps aux | grep text-embeddings-router
+kill <PID>
+```
+
+# Recommended production pattern
+
+1. Run TEI under a process supervisor (`systemd`, `supervisord`, or container runtime).
+2. Expose one stable embed URL.
+3. Keep model id fixed for each embedding campaign.
+4. Record endpoint + model id in run metadata.
+
+# Troubleshooting
+
+## Port already in use
+
+Use another port and update backend config accordingly.
+
+## Empty/invalid responses
+
+- Check `curl` smoke test directly against `/embed`.
+- Reduce `max_batch_size` in `embedding_backend_config()`.
+
+## Slow throughput
+
+- Increase TEI resources.
+- Use larger `batch_size` in `embed_corpus()` where feasible.
+- Verify server-side limits from `/info`.

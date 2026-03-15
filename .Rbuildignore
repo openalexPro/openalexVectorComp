@@ -1,2 +1,5 @@
 ^vignettes/\.quarto$
 ^vignettes/*_files$
+^IMPLEMENTATION_NOTES\.md$
+^doc$
+^Meta$

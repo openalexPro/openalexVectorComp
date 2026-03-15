@@ -1,0 +1,287 @@
+---
+title: "package-overview"
+vignette: >
+  %\VignetteIndexEntry{package-overview}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+format:
+  html:
+    mermaid:
+      theme: forest
+knitr:
+  opts_chunk:
+    collapse: true
+    comment: "#>"
+    eval: false
+---
+
+# Purpose
+
+This vignette provides a full package-level overview of `openalexVectorComp`:
+
+- design philosophy,
+- core function groups,
+- end-to-end workflow,
+- storage layout,
+- practical usage patterns,
+- extension points.
+
+It is intended as the orientation document before using the technical vignettes.
+
+# Package Philosophy
+
+The package follows five core principles:
+
+1. **Pipeline-first orchestration**
+   - Handle large corpora in batches with Arrow/Parquet.
+
+2. **Backend-neutral embedding interface**
+   - Use one config/dispatch API for HF, OpenAI, or TEI.
+
+3. **Deterministic resume behavior**
+   - Use `id + text_hash` to skip unchanged rows safely.
+
+4. **Pluggable text preparation**
+   - Let users inject custom cleaners while preserving contracts.
+
+5. **Transparent scoring workflow**
+   - Keep similarity, prototype distance, ridge scoring, and calibration
+     separable and inspectable.
+
+```{mermaid}
+flowchart LR
+  A[Large corpus] --> B[Deterministic preprocessing]
+  B --> C[Backend-neutral embedding]
+  C --> D[Reproducible storage]
+  D --> E[Distance and classification]
+  E --> F[Threshold calibration]
+  F --> G[Operational decisions]
+```
+
+# Function Groups
+
+The exported functions fall into six groups.
+
+## 1) Embedding backend abstraction
+
+- `embedding_backend_config()`
+- `embedding_backend_info()`
+- `embedding_backend_embed_texts()`
+- `embedding_backend_read()`
+- `embedding_backend_save()`
+- `embed_texts()`
+
+These functions isolate provider-specific details and expose a stable interface.
+
+## 2) Corpus embedding orchestration
+
+- `embed_corpus()`
+
+This is the main batch pipeline driver for production embedding runs.
+
+## 3) Text preparation
+
+- `clean_abstract_for_embedding()`
+
+Default implementation for title/abstract cleaning and canonical text creation.
+
+## 4) Similarity and distance
+
+- `similarity_cosine()`
+- `distance_cosine()`
+- `distance_prototype()`
+- `distances()` (internal helper surface used in the distance workflow)
+
+These functions quantify embedding-space relevance from geometric perspectives.
+
+## 5) Supervised scoring and calibration
+
+- `fit_ridge()`
+- `distance_ridge()`
+- `calibrate_threshold()`
+
+These functions produce calibrated decision-ready scores.
+
+## 6) Embedding-space visualization
+
+- `plot_embeddings_pca()`
+- `plot_embeddings_umap()`
+
+These functions support diagnostics and qualitative checks.
+
+```{mermaid}
+flowchart TB
+  A[Backend Abstraction] --> B[embed_corpus]
+  C[Text Preparation] --> B
+  B --> D[Stored embeddings]
+  D --> E[Similarity and distance]
+  D --> F[Ridge scoring]
+  E --> G[Threshold calibration]
+  F --> G
+  D --> H[PCA/UMAP diagnostics]
+```
+
+# Canonical Workflow
+
+Typical workflow for one project:
+
+1. Configure backend (`embedding_backend_config()`).
+2. Embed corpus (`embed_corpus()`).
+3. Compute scoring signal (`distance_prototype()` and/or `distance_ridge()`).
+4. Calibrate operating threshold (`calibrate_threshold()`).
+5. Validate with plots (`plot_embeddings_pca()` / `plot_embeddings_umap()`).
+
+```{mermaid}
+sequenceDiagram
+  participant U as User
+  participant BC as backend_config
+  participant EC as embed_corpus
+  participant ES as embedding_store
+  participant DP as distance_prototype
+  participant DR as distance_ridge
+  participant CT as calibrate_threshold
+
+  U->>BC: embedding_backend_config(...)
+  U->>EC: embed_corpus(project_dir, backend)
+  EC->>ES: write embeddings parquet
+  U->>DP: distance_prototype(...)
+  U->>DR: distance_ridge(...)
+  U->>CT: calibrate_threshold(...)
+```
+
+# Data and Storage Model
+
+## Corpus input
+
+`embed_corpus()` expects:
+
+- `project_dir/corpus` as Arrow dataset
+- columns: `id`, `title`, `abstract`
+
+## Embeddings output
+
+Embeddings are written under:
+
+- `project_dir/embeddings/model_id=<model>/batch=*/embeddings-*.parquet`
+- metadata in:
+  - `project_dir/embeddings/model_id=<model>/embed_model.yaml`
+
+## Dry-run output
+
+When `dry_run = TRUE`, no embeddings are written. Instead:
+
+- `project_dir/dry_run_cleaning_model_id=<model>.parquet`
+
+This file supports auditing preprocessing behavior (including custom cleaners).
+
+```{mermaid}
+flowchart TB
+  A[project_dir/corpus] --> B[embed_corpus]
+  B --> C[model_id=.../embed_model.yaml]
+  B --> D[model_id=.../batch=*/embeddings-*.parquet]
+  B --> E[dry_run_cleaning_model_id=...parquet]
+```
+
+# Text-Preparation Contract
+
+`embed_corpus()` accepts:
+
+- `text_preprocessor` (function)
+- `cleaner_args` (named list)
+
+The preprocessor must return a data frame with:
+
+- `id`
+- `text`
+- `text_hash`
+
+Optional columns are preserved and can be persisted (e.g., quality flags).
+
+## Why this contract matters
+
+- ensures skip/resume determinism,
+- enables provider-independent cleaning strategies,
+- allows quality provenance without altering backend adapters.
+
+# Decision Model: Geometric + Supervised
+
+The package supports two complementary relevance styles:
+
+1. **Prototype distance**
+   - interpretable geometric signal from included/excluded centroids.
+
+2. **Ridge logistic score**
+   - supervised linear decision in embedding space.
+
+Use one or both, then calibrate threshold for target operating behavior.
+
+```{mermaid}
+flowchart LR
+  A[Embeddings] --> B[Prototype distance]
+  A --> C[Ridge logistic score]
+  B --> D[Ranked candidates]
+  C --> D
+  D --> E[calibrate_threshold]
+  E --> F[Precision/recall operating point]
+```
+
+# Minimal End-to-End Example
+
+```r
+library(openalexVectorComp)
+
+backend <- embedding_backend_config(
+  provider = "hf",
+  model = "BAAI/bge-small-en-v1.5",
+  max_batch_size = 64
+)
+
+model_dir <- embed_corpus(
+  project_dir = "my_project",
+  backend = backend,
+  batch_size = 5000,
+  delete_existing = FALSE,
+  save_text = TRUE
+)
+
+scores_dir <- distance_ridge(
+  project_dir = "my_project",
+  included = "included.csv",
+  excluded = "excluded.csv"
+)
+
+best <- calibrate_threshold(
+  scores_parquet = scores_dir,
+  score_col = "relevance_score",
+  included = "included.csv",
+  excluded = "excluded.csv"
+)
+```
+
+# Operational Guidance
+
+- Start with HF defaults for initial setup.
+- Keep `save_text = TRUE` in alpha/review phases for auditability.
+- Use `dry_run = TRUE` to validate custom cleaners before API spend.
+- Prefer `mode = "balanced"` in `clean_abstract_for_embedding()` unless you
+  have measured reasons to go stricter.
+- Re-calibrate thresholds whenever model, cleaner policy, or label set changes.
+
+# Related Vignettes
+
+- `backend-architecture`: provider/dispatch implementation details.
+- `abstract-cleaning`: cleaning rules and examples in depth.
+- `tei-server-operations`: local TEI operational handling.
+- `simplestart`: quick start usage path.
+
+# Summary
+
+`openalexVectorComp` is a composable embedding-and-scoring pipeline package:
+
+- backend-neutral for embeddings,
+- deterministic for resume and reproducibility,
+- pluggable for text cleaning,
+- explicit for distance and calibration decisions.
+
+Use this overview as the map, then dive into the specialized vignettes for
+implementation-level details.

@@ -35,7 +35,13 @@ distances <- function(
   ridge_distance
 ) {
   dplyr::inner_join(
-    open_dataset(prototype_distances),
-    open_dataset(ridge_distance)
+    open_dataset(
+      prototype_distances,
+      factory_options = list(exclude_invalid_files = TRUE)
+    ),
+    open_dataset(
+      ridge_distance,
+      factory_options = list(exclude_invalid_files = TRUE)
+    )
   )
 }

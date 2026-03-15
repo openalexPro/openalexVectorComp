@@ -14,18 +14,21 @@ knitr:
 
 # Introduction
 
-This vignette walks through a minimal end‑to‑end run using openalexAutoTag:
+This vignette walks through a minimal end‑to‑end run using openalexVectorComp:
 
-- start a local TEI (Text Embeddings Inference) server,
+- use a running TEI (Text Embeddings Inference) server endpoint,
 - embed a small Parquet corpus into shard files,
 - compute prototype margins and ridge distances.
 
-The code mirrors `inst/examples/run_autotag_example.R`, with more context and guidance.
+The code mirrors the package functions directly, with more context and guidance.
+
+For detailed text-preparation logic before embedding (including abstract
+cleaning rules, policies, and customization), see the vignette
+`abstract-cleaning`.
 
 # Requirements
 
-- A TEI server binary (`text-embeddings-router`) available on your system PATH,
-  or pass the `bin` argument to `tei_start()`.
+- A running TEI server endpoint, e.g. `http://localhost:3000/embed`.
 - Suggested R packages (for vignette rendering): `knitr`, `rmarkdown`, and `quarto`.
 - The example data located under `inst/examples/` in this package source.
 
@@ -36,32 +39,16 @@ The code mirrors `inst/examples/run_autotag_example.R`, with more context and gu
 - Long‑running steps (embedding) are intentionally small in batch size to keep
   resource usage low when you do run them.
 
-# Start a TEI server
+# TEI endpoint
 
-Use `tei_start()` to launch a local TEI server in the background. The process is
-tracked by the package and can be stopped with `tei_stop()`. The helper
-`tei_state()` shows the tracked state.
+Start TEI outside the package, for example from a shell:
 
-```{r}
-#| label: start-tei
-library(openalexAutoTag)
-
-# Start a TEI server; the URL is remembered and used by defaults elsewhere
-tei_start(
-  model = "sentence-transformers/all-mpnet-base-v2",
-  args = c("--auto-truncate")
-)
-
-# Inspect the remembered state (pid/port/url)
-tei_state()
+```bash
+text-embeddings-router --model-id BAAI/bge-small-en-v1.5 --port 3000
 ```
 
-To get further info, you can use `tei_info()`:
-
-```{r}
-#| label: tei-info
-tei_info()
-```
+For detailed operational guidance (start/stop/health checks), see the vignette
+`tei-server-operations`.
 
 # Embed a small corpus
 
@@ -70,22 +57,15 @@ We embed to `inst/examples/embedings/` (note: the folder name mirrors the exampl
 
 ```{r}
 #| label: embed-corpus
-tei_embed(
+embed_corpus(
   project_dir = "inst/examples",
+  backend = embedding_backend_config(
+    provider = "tei",
+    base_url = "http://localhost:3000"
+  ),
   batch_size = 15,
   verbose = TRUE
 )
-```
-
-
-# Stop the TEI server
-
-When you are done with the embedding, you can stop the background server. The package also attempts this on
-unload via `.onUnload()`.
-
-```{r}
-#| label: stop-tei
-tei_stop()
 ```
 
 # Compute prototype margins
@@ -95,11 +75,10 @@ Prototype margins require two ID lists: a positive “included” set and a nega
 
 ```{r}
 #| label: prototype-margins
-prototype_distance(
+distance_prototype(
   project_dir = "inst/examples",
   included = "inst/examples/included_part.csv",
-  excluded = "inst/examples/excluded_part.csv",
-  batch_size = 10
+  excluded = "inst/examples/excluded_part.csv"
 )
 ```
 
@@ -110,7 +89,7 @@ score the entire dataset. The outputs mirror the embeddings structure.
 
 ```{r}
 #| label: ridge-distances
-ridge_distance(
+distance_ridge(
   project_dir = "inst/examples/",
   included = "inst/examples/included_part.csv",
   excluded = "inst/examples/excluded_part.csv"
@@ -120,10 +99,9 @@ ridge_distance(
 # Troubleshooting
 
 - Can’t find `text-embeddings-router`:
-  - Install the binary and ensure it is on PATH, or pass `bin = "/path/to/text-embeddings-router"`.
+  - Install the binary and ensure it is on PATH.
 - Port in use:
-  - Use `tei_start(port = 3001)` (and friends). All embedding helpers will use
-    the remembered URL by default.
+  - Start TEI on another port and update `backend = embedding_backend_config(provider = "tei", base_url = "http://localhost:3001")`.
 - Slow embedding or timeouts:
   - Reduce `batch_size`, and verify the server’s `/info` limits.
 

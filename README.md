@@ -1,4 +1,4 @@
-# autotagr
+# openalexVectorComp
 
 **Auto-tagging via TEI embeddings + Qdrant**, implemented in R.
 
@@ -11,7 +11,7 @@
 
 ```r
 # install.packages("devtools")
-devtools::install_local("autotagr")
+devtools::install_local("openalexVectorComp")
 ```
 
 Or build & install from the zip you downloaded.
@@ -20,7 +20,7 @@ Or build & install from the zip you downloaded.
 
 - TEI server running (CPU is fine):
   ```bash
-  text-embeddings-router --model sentence-transformers/all-MiniLM-L6-v2 --port 8080
+  text-embeddings-router --model BAAI/bge-small-en-v1.5 --port 8080
   ```
 
 - Qdrant server (optional if you only use modeling; required for ANN search):
@@ -29,4 +29,4 @@ Or build & install from the zip you downloaded.
 
 ## Vignette
 
-See `vignettes/autotagr.Rmd` for a full walkthrough.
+See `vignettes/simplestart.qmd` for a walkthrough.
