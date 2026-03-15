@@ -2,54 +2,51 @@
 % Please edit documentation in R/distance_prototype.R
 \name{distance_prototype}
 \alias{distance_prototype}
-\title{Score prototype margin for a Parquet embeddings dataset}
+\title{Pairwise cosine distances between reference and corpus label partitions}
 \usage{
 distance_prototype(
   project_dir,
   embeddings_dir = "model_id=BAAI_bge-small-en-v1.5",
-  included,
-  excluded,
-  workers = 2,
-  future_plan = "multisession",
+  corpus_label = "corpus",
+  reference_label = "reference",
+  batch_size = 1e+05,
+  max_cells = 5e+07,
   verbose = TRUE
 )
 }
 \arguments{
-\item{project_dir}{Project root directory.
-Must contain a folder \code{embeddings} containing the embeddings.
-Outputs are written under
-\verb{project_dir/distance_prototype/model_id=<...>/batch=<n>/} with columns
-\code{id} and \code{distance}.}
+\item{project_dir}{Project root directory containing \verb{embeddings/}.}
 
-\item{embeddings_dir}{Subfolder under \code{project_dir/embeddings} that contains
-the embeddings dataset.}
+\item{embeddings_dir}{Model subfolder under \code{project_dir/embeddings}, e.g.
+\code{"model_id=BAAI_bge-small-en-v1.5"}.}
 
-\item{included}{Name of a csv file containing a column named \code{id} containing the \code{id} values that define the positive prototype.}
+\item{corpus_label}{Label partition used as corpus side. Defaults to
+\code{"corpus"}.}
 
-\item{excluded}{Name of a csv file containing a column named \code{id} containing the \code{id} values that define the negative prototype.}
+\item{reference_label}{Label partition used as reference side. Defaults to
+\code{"reference"}.}
 
-\item{workers}{Number of parallel workers to use. Passed to
-\code{future::plan()} as \code{workers}.}
+\item{batch_size}{Unused placeholder for compatibility with planned streaming
+extension.}
 
-\item{future_plan}{Future plan to use. Defaults to \code{"multisession"}.}
+\item{max_cells}{Maximum allowed matrix size (\code{n_reference * n_corpus}) to
+guard memory use.}
+
+\item{verbose}{Logical; print progress messages.}
 }
 \value{
-Invisibly the model-specific output directory under
-\verb{project_dir/distance_prototype/model_id=<...>/}.
+Invisibly the output directory
+\verb{project_dir/distance_prototype/model_id=<...>/corpus_label=<...>/reference_label=<...>/}.
 }
 \description{
-Streams an embeddings Parquet dataset in batches, computes the cosine-sim
-margin of distance to positive minus negative prototypes, and writes Parquet
-outputs mirroring the embeddings layout: \verb{model_id=<...>/batch=<n>/ prototype-margin-*.parquet} with columns \code{id} and \code{distance}.
+Reads embeddings from a model-specific dataset and computes pairwise cosine
+distances between all vectors in \code{reference_label} and all vectors in
+\code{corpus_label}.
 }
-\examples{
-\dontrun{
-scores <- distance_prototype(
-  embeddings = "project/embeddings/",
-  included = "included.csv",
-  excluded = "excluded.csv",
-  project_dir = "project/"
-)
-}
+\details{
+Embeddings are expected under:
+\verb{project_dir/embeddings/model_id=<...>/label=<label>/batch=<n>/...}
 
+Output is a wide Parquet table with one row per reference id and one column
+per corpus id.
 }

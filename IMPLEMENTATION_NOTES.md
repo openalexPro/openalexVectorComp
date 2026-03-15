@@ -341,3 +341,60 @@ This is easier to maintain but less extensible for additional providers.
 
 This file should be updated as additional changes are made in this branch so it
 remains a single place to review implementation decisions and rationale.
+
+### 21) Label-partitioned embeddings and pairwise prototype distances
+
+- `embed_corpus()` gained a new `label` argument (default `"corpus"`).
+- Embeddings path changed from `model/batch` to `model/label/batch`:
+  - `embeddings/model_id=<...>/label=<label>/batch=<n>/embeddings-*.parquet`
+- `delete_existing = TRUE` now deletes only the selected `label` subtree.
+- Resume hash loading now reads only the selected `label` partition.
+- Dry-run preview filename now includes label:
+  - `dry_run_cleaning_model_id=<model>_label=<label>.parquet`
+- `embed_model.yaml` now stores `embedding_label` for traceability.
+
+- `distance_prototype()` was redesigned from `included/excluded` centroid margin
+  to label-based pairwise cosine distances:
+  - inputs: `corpus_label`, `reference_label`
+  - computes pairwise matrix between all `reference` and `corpus` vectors
+  - writes wide parquet with `reference_id` rows and one column per corpus id
+  - output path:
+    - `distance_prototype/model_id=<...>/corpus_label=<...>/reference_label=<...>/pairwise-cosine.parquet`
+  - includes `max_cells` guard for memory safety.
+
+### 22) Ridge refactor to reference-area scoring
+
+- `fit_ridge()` was redesigned to fit a reference-area model instead of binary
+  ridge logistic classification.
+- New fit contract:
+  - inputs: embeddings dataset + `reference_label`
+  - computes:
+    - centroid `mu`
+    - covariance `Sigma` (with fallback for very small reference sets)
+    - regularized inverse covariance `Sigma_inv`
+  - saves a fit object with class `ovc_reference_area_fit`.
+
+- `distance_ridge()` now:
+  - fits (or loads) reference-area model
+  - scores only `corpus_label` vectors
+  - computes squared Mahalanobis distance `area_distance`
+  - converts to `relevance_score = exp(-0.5 * area_distance)`
+  - writes parquet with columns:
+    - `id`
+    - `relevance_score`
+    - `area_distance`
+  - output path:
+    - `distance_ridge/model_id=<...>/corpus_label=<...>/batch=<n>/ridge-area-*.parquet`
+
+- Metadata copy for distance outputs now includes ridge-mode context fields:
+  - `ridge_mode: reference_area`
+  - `reference_label`
+  - `corpus_label`
+  - `regularization`
+
+### 23) Calibration flow alignment
+
+- `calibrate_threshold()` was fixed to only read `included`/`excluded` CSVs
+  when `labels_parquet` is not provided.
+- This enables labels-only calibration for the new ridge workflow.
+

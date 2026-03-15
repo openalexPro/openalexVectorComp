@@ -17,6 +17,7 @@ make_distance_test_project <- function() {
     id = paste0("W", seq_len(2L * n_each)),
     V1 = c(v1_pos, v1_neg),
     V2 = c(v2_pos, v2_neg),
+    label = c(rep("reference", n_each), rep("corpus", n_each)),
     batch = rep(seq_len(8L), each = 10L),
     stringsAsFactors = FALSE
   )
@@ -25,7 +26,7 @@ make_distance_test_project <- function() {
     emb,
     path = model_dir,
     format = "parquet",
-    partitioning = "batch"
+    partitioning = c("label", "batch")
   )
 
   openalexVectorComp::embedding_backend_save(
@@ -36,18 +37,18 @@ make_distance_test_project <- function() {
     fn = file.path(model_dir, "embed_model.yaml")
   )
 
-  included_ids <- paste0("W", seq_len(n_each))
-  excluded_ids <- paste0("W", n_each + seq_len(n_each))
-  included_csv <- file.path(project_dir, "included.csv")
-  excluded_csv <- file.path(project_dir, "excluded.csv")
+  reference_ids <- paste0("W", seq_len(n_each))
+  corpus_ids <- paste0("W", n_each + seq_len(n_each))
+  reference_csv <- file.path(project_dir, "reference.csv")
+  corpus_csv <- file.path(project_dir, "corpus.csv")
   utils::write.csv(
-    data.frame(id = included_ids, stringsAsFactors = FALSE),
-    included_csv,
+    data.frame(id = reference_ids, stringsAsFactors = FALSE),
+    reference_csv,
     row.names = FALSE
   )
   utils::write.csv(
-    data.frame(id = excluded_ids, stringsAsFactors = FALSE),
-    excluded_csv,
+    data.frame(id = corpus_ids, stringsAsFactors = FALSE),
+    corpus_csv,
     row.names = FALSE
   )
 
@@ -55,10 +56,10 @@ make_distance_test_project <- function() {
     project_dir = project_dir,
     model_dir = model_dir,
     model_part = model_part,
-    included_ids = included_ids,
-    excluded_ids = excluded_ids,
-    included_csv = included_csv,
-    excluded_csv = excluded_csv
+    reference_ids = reference_ids,
+    corpus_ids = corpus_ids,
+    reference_csv = reference_csv,
+    corpus_csv = corpus_csv
   )
 }
 
@@ -80,14 +81,13 @@ testthat::test_that("similarity_cosine and distance_cosine handle vectors and ma
   testthat::expect_true(is.na(openalexVectorComp::similarity_cosine(c(0, 0), c(1, 1))))
 })
 
-testthat::test_that("fit_ridge returns persisted cv.glmnet model", {
+testthat::test_that("fit_ridge returns persisted reference-area fit", {
   p <- make_distance_test_project()
   out <- file.path(p$project_dir, "ridge_fit_unit.rds")
 
   returned <- openalexVectorComp::fit_ridge(
     embeddings = p$model_dir,
-    included = p$included_ids,
-    excluded = p$excluded_ids,
+    reference_label = "reference",
     output = out,
     verbose = FALSE
   )
@@ -96,41 +96,90 @@ testthat::test_that("fit_ridge returns persisted cv.glmnet model", {
   testthat::expect_true(file.exists(out))
 
   fit <- readRDS(out)
-  testthat::expect_s3_class(fit, "cv.glmnet")
-  testthat::expect_true(is.numeric(fit$lambda.min))
+  testthat::expect_s3_class(fit, "ovc_reference_area_fit")
+  testthat::expect_true(is.numeric(fit$mu))
+  testthat::expect_true(is.matrix(fit$Sigma_inv))
 })
 
-testthat::test_that("distance_prototype scores separate included from excluded", {
+testthat::test_that("distance_prototype writes pairwise cosine matrix", {
   p <- make_distance_test_project()
 
   out_dir <- openalexVectorComp::distance_prototype(
     project_dir = p$project_dir,
     embeddings_dir = p$model_part,
-    included = "included.csv",
-    excluded = "excluded.csv",
-    workers = 1,
-    future_plan = "multisession",
+    corpus_label = "corpus",
+    reference_label = "reference",
     verbose = FALSE
   )
 
   testthat::expect_true(dir.exists(out_dir))
-  ds <- arrow::open_dataset(
-    out_dir,
-    factory_options = list(exclude_invalid_files = TRUE)
-  )
-  scored <- ds |>
-    dplyr::select(id, distance) |>
-    dplyr::collect() |>
-    dplyr::group_by(id) |>
-    dplyr::summarise(distance = mean(distance), .groups = "drop")
+  out_file <- file.path(out_dir, "pairwise-cosine.parquet")
+  testthat::expect_true(file.exists(out_file))
+  mat <- arrow::read_parquet(out_file)
 
-  testthat::expect_equal(
-    sort(scored$id),
-    sort(c(p$included_ids, p$excluded_ids))
+  testthat::expect_true("reference_id" %in% names(mat))
+  testthat::expect_equal(nrow(mat), 40L)
+  testthat::expect_equal(ncol(mat), 41L)
+  testthat::expect_equal(sort(mat$reference_id), sort(p$reference_ids))
+
+  corpus_cols <- setdiff(names(mat), "reference_id")
+  testthat::expect_equal(sort(corpus_cols), sort(p$corpus_ids))
+  testthat::expect_true(all(is.finite(as.matrix(mat[, corpus_cols, drop = FALSE]))))
+})
+
+testthat::test_that("distance_prototype validates labels and max_cells guard", {
+  p <- make_distance_test_project()
+
+  testthat::expect_error(
+    openalexVectorComp::distance_prototype(
+      project_dir = p$project_dir,
+      embeddings_dir = p$model_part,
+      corpus_label = "missing",
+      reference_label = "reference",
+      verbose = FALSE
+    ),
+    "No embeddings found for `corpus_label"
   )
-  pos_mean <- mean(scored$distance[scored$id %in% p$included_ids])
-  neg_mean <- mean(scored$distance[scored$id %in% p$excluded_ids])
-  testthat::expect_gt(pos_mean, neg_mean)
+
+  testthat::expect_error(
+    openalexVectorComp::distance_prototype(
+      project_dir = p$project_dir,
+      embeddings_dir = p$model_part,
+      corpus_label = "corpus",
+      reference_label = "reference",
+      max_cells = 10,
+      verbose = FALSE
+    ),
+    "exceeding `max_cells"
+  )
+})
+
+testthat::test_that("distance_prototype errors on duplicate ids within a label partition", {
+  td <- tempfile("ovc_distance_dup_")
+  model_part <- "model_id=BAAI_bge-small-en-v1.5"
+  model_dir <- file.path(td, "embeddings", model_part)
+  dir.create(model_dir, recursive = TRUE, showWarnings = FALSE)
+
+  emb <- data.frame(
+    id = c("R1", "R1", "C1"),
+    V1 = c(1, 1, 0),
+    V2 = c(0, 0, 1),
+    label = c("reference", "reference", "corpus"),
+    batch = c(1, 1, 1),
+    stringsAsFactors = FALSE
+  )
+  arrow::write_dataset(emb, path = model_dir, format = "parquet", partitioning = c("label", "batch"))
+
+  testthat::expect_error(
+    openalexVectorComp::distance_prototype(
+      project_dir = td,
+      embeddings_dir = model_part,
+      corpus_label = "corpus",
+      reference_label = "reference",
+      verbose = FALSE
+    ),
+    "Duplicate ids found in reference label partition"
+  )
 })
 
 testthat::test_that("distance_ridge creates relevance scores in [0, 1]", {
@@ -138,8 +187,8 @@ testthat::test_that("distance_ridge creates relevance scores in [0, 1]", {
 
   out_dir <- openalexVectorComp::distance_ridge(
     project_dir = p$project_dir,
-    included = p$included_csv,
-    excluded = p$excluded_csv,
+    reference_label = "reference",
+    corpus_label = "corpus",
     batch_size = 4,
     verbose = FALSE
   )
@@ -150,21 +199,24 @@ testthat::test_that("distance_ridge creates relevance scores in [0, 1]", {
     factory_options = list(exclude_invalid_files = TRUE)
   )
   scores <- ds |>
-    dplyr::select(id, relevance_score) |>
+    dplyr::select(id, relevance_score, area_distance) |>
     dplyr::collect() |>
     dplyr::group_by(id) |>
-    dplyr::summarise(relevance_score = mean(relevance_score), .groups = "drop")
+    dplyr::summarise(
+      relevance_score = mean(relevance_score),
+      area_distance = mean(area_distance),
+      .groups = "drop"
+    )
 
   testthat::expect_equal(
     sort(scores$id),
-    sort(c(p$included_ids, p$excluded_ids))
+    sort(p$corpus_ids)
   )
   testthat::expect_true(all(is.finite(scores$relevance_score)))
+  testthat::expect_true(all(is.finite(scores$area_distance)))
   testthat::expect_true(all(scores$relevance_score >= 0 & scores$relevance_score <= 1))
 
-  pos_mean <- mean(scores$relevance_score[scores$id %in% p$included_ids])
-  neg_mean <- mean(scores$relevance_score[scores$id %in% p$excluded_ids])
-  testthat::expect_gt(pos_mean, neg_mean)
+  testthat::expect_true(all(scores$area_distance >= 0))
 })
 
 testthat::test_that("distances joins prototype and ridge datasets by id", {

@@ -2,12 +2,11 @@
 % Please edit documentation in R/plot_embeddings.R
 \name{plot_embeddings_pca}
 \alias{plot_embeddings_pca}
-\title{Plot embeddings via PCA, colored by inclusion/exclusion}
+\title{Plot embeddings via PCA, colored by arbitrary labels}
 \usage{
 plot_embeddings_pca(
   embeddings,
-  included,
-  excluded,
+  labels,
   center = TRUE,
   scale. = FALSE,
   point_size = 2,
@@ -18,11 +17,13 @@ plot_embeddings_pca(
 \item{embeddings}{Path to a Parquet file or dataset directory containing
 columns \code{id} and \code{V1..Vd}.}
 
-\item{included}{Either a character vector of ids, or the path to a CSV file
-with a column named \code{id}.}
-
-\item{excluded}{Either a character vector of ids, or the path to a CSV file
-with a column named \code{id}.}
+\item{labels}{Label mapping for ids. Supported formats:
+\enumerate{
+\item data frame with columns \code{id} and \code{label},
+\item path to CSV with columns \code{id} and \code{label},
+\item named character vector where names are ids and values are labels,
+\item named list where each element is an id vector for that label.
+}}
 
 \item{center, scale.}{Passed to \code{\link[stats:prcomp]{stats::prcomp()}} for PCA. Defaults
 \code{center = TRUE}, \code{scale. = FALSE}.}
@@ -38,15 +39,17 @@ group.
 Reads an embeddings Parquet dataset (produced by \code{\link[=embed_corpus]{embed_corpus()}}) with columns
 \code{id} and \code{V1..Vd}, computes a PCA on the embedding matrix, and returns a
 scatter plot of the first two principal components. Points are colored by
-whether their \code{id} is listed in \code{included} (green), \code{excluded} (red), or
-neither (grey).
+labels provided via \code{labels}. Rows not found in \code{labels} are shown as
+\code{"other"}.
 }
 \examples{
 \dontrun{
 p <- plot_embeddings_pca(
   embeddings = "inst/examples/embedings/",
-  included = "inst/examples/included_part.csv",
-  excluded = "inst/examples/excluded_part.csv"
+  labels = data.frame(
+    id = c("W1", "W2", "W10"),
+    label = c("reference", "reference", "corpus")
+  )
 )
 print(p)
 }

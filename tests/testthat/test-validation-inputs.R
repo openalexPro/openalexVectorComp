@@ -11,16 +11,19 @@ make_tmp_scores_fixture <- function() {
   )
   arrow::write_dataset(scores, path = scores_dir, format = "parquet")
 
-  included_csv <- file.path(td, "included.csv")
-  excluded_csv <- file.path(td, "excluded.csv")
-  utils::write.csv(data.frame(id = c("A", "B")), included_csv, row.names = FALSE)
-  utils::write.csv(data.frame(id = c("C", "D")), excluded_csv, row.names = FALSE)
+  labels_dir <- file.path(td, "labels")
+  dir.create(labels_dir, recursive = TRUE, showWarnings = FALSE)
+  labels <- data.frame(
+    id = c("A", "B", "C", "D"),
+    label = c(1L, 1L, 0L, 0L),
+    stringsAsFactors = FALSE
+  )
+  arrow::write_dataset(labels, path = labels_dir, format = "parquet")
 
   list(
     root = td,
     scores_dir = scores_dir,
-    included_csv = included_csv,
-    excluded_csv = excluded_csv
+    labels_dir = labels_dir
   )
 }
 
@@ -207,6 +210,10 @@ testthat::test_that("embed_corpus validates key inputs", {
     embed_corpus(project_dir = tempdir(), dry_run = NA, verbose = FALSE),
     "`dry_run` must be TRUE or FALSE."
   )
+  testthat::expect_error(
+    embed_corpus(project_dir = tempdir(), label = "", verbose = FALSE),
+    "`label` must be a non-empty character string."
+  )
 
   td <- tempfile("ovc_corpus_bad_")
   dir.create(file.path(td, "corpus"), recursive = TRUE, showWarnings = FALSE)
@@ -226,12 +233,11 @@ testthat::test_that("fit_ridge and distance_ridge fail cleanly on invalid embedd
   testthat::expect_error(
     fit_ridge(
       embeddings = emb_dir,
-      included = c("X1"),
-      excluded = c("X2"),
+      reference_label = "reference",
       output = out_rds,
       verbose = FALSE
     ),
-    "No embedding columns \\(V1..Vd\\) found in dataset."
+    "has no `label` partition"
   )
 
   proj <- tempfile("ovc_ridge_bad_")
@@ -241,14 +247,9 @@ testthat::test_that("fit_ridge and distance_ridge fail cleanly on invalid embedd
     path = file.path(proj, "embeddings"),
     format = "parquet"
   )
-  inc <- file.path(proj, "inc.csv")
-  exc <- file.path(proj, "exc.csv")
-  utils::write.csv(data.frame(id = "Z"), inc, row.names = FALSE)
-  utils::write.csv(data.frame(id = "B"), exc, row.names = FALSE)
-
   testthat::expect_error(
-    distance_ridge(project_dir = proj, included = inc, excluded = exc, verbose = FALSE),
-    "None of the `included` ids were found in embeddings dataset."
+    distance_ridge(project_dir = proj, reference_label = "reference", corpus_label = "corpus", verbose = FALSE),
+    "has no `label` partition"
   )
 })
 
@@ -259,8 +260,7 @@ testthat::test_that("calibrate_threshold validates missing columns and labels", 
     calibrate_threshold(
       scores_parquet = fx$scores_dir,
       score_col = "not_here",
-      included = fx$included_csv,
-      excluded = fx$excluded_csv,
+      labels_parquet = fx$labels_dir,
       verbose = FALSE
     ),
     "`scores_parquet` must contain columns `id` and `not_here`."
@@ -277,24 +277,23 @@ testthat::test_that("calibrate_threshold validates missing columns and labels", 
     calibrate_threshold(
       scores_parquet = fx$scores_dir,
       score_col = "relevance_score",
-      included = fx$included_csv,
-      excluded = fx$excluded_csv,
       labels_parquet = labels_bad,
       verbose = FALSE
     ),
     "`labels_parquet` must have columns: id, label"
   )
-
-  inc_none <- file.path(fx$root, "inc_none.csv")
-  exc_none <- file.path(fx$root, "exc_none.csv")
-  utils::write.csv(data.frame(id = c("ZZ1")), inc_none, row.names = FALSE)
-  utils::write.csv(data.frame(id = c("ZZ2")), exc_none, row.names = FALSE)
+  labels_none <- file.path(fx$root, "labels_none")
+  dir.create(labels_none, recursive = TRUE, showWarnings = FALSE)
+  arrow::write_dataset(
+    data.frame(id = c("ZZ1", "ZZ2"), label = c(1L, 0L), stringsAsFactors = FALSE),
+    path = labels_none,
+    format = "parquet"
+  )
   testthat::expect_error(
     calibrate_threshold(
       scores_parquet = fx$scores_dir,
       score_col = "relevance_score",
-      included = inc_none,
-      excluded = exc_none,
+      labels_parquet = labels_none,
       verbose = FALSE
     ),
     "No labeled rows found in scores dataset."
@@ -315,8 +314,6 @@ testthat::test_that("calibrate_threshold succeeds with labels_parquet and explic
   out <- calibrate_threshold(
     scores_parquet = fx$scores_dir,
     score_col = "relevance_score",
-    included = fx$included_csv,
-    excluded = fx$excluded_csv,
     labels_parquet = labels_dir,
     metric = "precision_at_recall",
     recall_min = 0.5,

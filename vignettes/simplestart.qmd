@@ -63,6 +63,18 @@ embed_corpus(
     provider = "tei",
     base_url = "http://localhost:3000"
   ),
+  label = "corpus",
+  batch_size = 15,
+  verbose = TRUE
+)
+
+embed_corpus(
+  project_dir = "inst/examples",
+  backend = embedding_backend_config(
+    provider = "tei",
+    base_url = "http://localhost:3000"
+  ),
+  label = "reference",
   batch_size = 15,
   verbose = TRUE
 )
@@ -70,29 +82,31 @@ embed_corpus(
 
 # Compute prototype margins
 
-Prototype margins require two ID lists: a positive “included” set and a negative
-“excluded” set. The example CSVs are in `inst/examples/`.
+Prototype distances are computed pairwise between all vectors in a reference
+label partition and all vectors in a corpus label partition.
 
 ```{r}
 #| label: prototype-margins
 distance_prototype(
   project_dir = "inst/examples",
-  included = "inst/examples/included_part.csv",
-  excluded = "inst/examples/excluded_part.csv"
+  embeddings_dir = "model_id=BAAI_bge-small-en-v1.5",
+  corpus_label = "corpus",
+  reference_label = "reference"
 )
 ```
 
 # Compute ridge distances
 
-Ridge distances train a regularized logistic model between the two sets and
-score the entire dataset. The outputs mirror the embeddings structure.
+Ridge distances now model the `reference` label as an embedding area
+(centroid + covariance) and score all `corpus` rows by Mahalanobis-style
+distance converted to `relevance_score`.
 
 ```{r}
 #| label: ridge-distances
 distance_ridge(
   project_dir = "inst/examples/",
-  included = "inst/examples/included_part.csv",
-  excluded = "inst/examples/excluded_part.csv"
+  reference_label = "reference",
+  corpus_label = "corpus"
 )
 ```
 

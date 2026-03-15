@@ -2,12 +2,11 @@
 % Please edit documentation in R/plot_embeddings.R
 \name{plot_embeddings_umap}
 \alias{plot_embeddings_umap}
-\title{Plot embeddings via UMAP, colored by inclusion/exclusion}
+\title{Plot embeddings via UMAP, colored by arbitrary labels}
 \usage{
 plot_embeddings_umap(
   embeddings,
-  included,
-  excluded,
+  labels,
   n_neighbors = 15,
   min_dist = 0.1,
   metric = "cosine",
@@ -22,11 +21,13 @@ plot_embeddings_umap(
 \item{embeddings}{Path to a Parquet file or dataset directory containing
 columns \code{id} and \code{V1..Vd}.}
 
-\item{included}{Either a character vector of ids, or the path to a CSV file
-with a column named \code{id}.}
-
-\item{excluded}{Either a character vector of ids, or the path to a CSV file
-with a column named \code{id}.}
+\item{labels}{Label mapping for ids. Supported formats:
+\enumerate{
+\item data frame with columns \code{id} and \code{label},
+\item path to CSV with columns \code{id} and \code{label},
+\item named character vector where names are ids and values are labels,
+\item named list where each element is an id vector for that label.
+}}
 
 \item{n_neighbors, min_dist, metric, n_epochs}{UMAP parameters passed to
 \code{\link[uwot:umap]{uwot::umap()}}. Defaults: \code{n_neighbors = 15}, \code{min_dist = 0.1},
@@ -45,6 +46,6 @@ A \code{ggplot} object of UMAP1 vs UMAP2 colored by group.
 }
 \description{
 Computes a 2D UMAP projection of \code{V1..Vd} and returns a scatter plot colored
-by \code{included}/\code{excluded} membership. Uses cosine distance by default to align
+by \code{labels} membership. Uses cosine distance by default to align
 with common embedding similarity.
 }

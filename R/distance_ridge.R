@@ -1,42 +1,51 @@
-#' Predict probabilities from a ridge logistic `cv.glmnet` fit
+#' Score corpus embeddings by distance to a reference embedding area
 #'
-#' Streams an embeddings Parquet dataset in batches, applies a trained ridge
-#' logistic model, and writes Parquet outputs mirroring the embeddings layout:
-#' `model_id=<...>/shard=<n>/ridge-logistic-*.parquet` with columns `id` and
-#' `relevance_score`. Also writes the fitted model as `ridge_fit.rds` into the
-#' corresponding `model_id=<...>` directory and copies `embed_model.yaml` there.
+#' Fits (or loads) a reference-area model from `reference_label` embeddings and
+#' scores only rows in `corpus_label` using squared Mahalanobis distance.
+#' Distances are converted to relevance via
+#' `relevance_score = exp(-0.5 * area_distance)`.
 #'
-#' @param project_dir Project root.
-#'   Must contain a folder `embeddings` containing the embeddings.
-#'   Scores are written under
-#'   `project_dir/distance_ridge/model_id=<...>/shard=<n>/` and the fitted model
-#'   RDS is saved to `project_dir/ridge_fit.rds`. The `embed_model.yaml` is copied
-#'   to both the model folder and the project root.
-#' @param s Lambda to use; one of `"lambda.min"` or `"lambda.1se"` (default
-#'   `"lambda.min"`).
+#' @param project_dir Project root containing `embeddings/`.
+#' @param reference_label Label partition used to fit the reference area.
+#'   Defaults to `"reference"`.
+#' @param corpus_label Label partition to score. Defaults to `"corpus"`.
+#' @param fit_path Optional path to an existing reference-area fit (`.rds`). If
+#'   `NULL`, a new fit is created at `project_dir/ridge_fit.rds`.
 #' @param batch_size Approximate number of rows per Arrow scan batch.
+#' @param regularization Diagonal covariance regularization added before
+#'   inversion.
 #' @param verbose Logical; print progress messages.
 #'
 #' @return Invisibly the model output directory under
-#'   `project_dir/distance_ridge/model_id=<...>/`.
-#'
+#'   `project_dir/distance_ridge/model_id=<...>/corpus_label=<...>/`.
 #' @export
 distance_ridge <- function(
   project_dir,
-  included = included,
-  excluded = excluded,
-  s = c("lambda.min", "lambda.1se"),
+  reference_label = "reference",
+  corpus_label = "corpus",
+  fit_path = NULL,
   batch_size = 100000,
+  regularization = 1e-6,
   verbose = TRUE
 ) {
-  s <- match.arg(s)
+  `%||%` <- function(x, y) if (is.null(x)) y else x
 
-  embeddings <- normalizePath(
-    file.path(project_dir, "embeddings"),
-    mustWork = TRUE
-  )
+  if (!is.character(reference_label) || length(reference_label) != 1 || !nzchar(trimws(reference_label))) {
+    stop("`reference_label` must be a non-empty character string.")
+  }
+  if (!is.character(corpus_label) || length(corpus_label) != 1 || !nzchar(trimws(corpus_label))) {
+    stop("`corpus_label` must be a non-empty character string.")
+  }
+  if (!is.numeric(regularization) || length(regularization) != 1 || !is.finite(regularization) || regularization <= 0) {
+    stop("`regularization` must be a positive number.")
+  }
 
-  # Resolve the embeddings model directory (expects model_id=... level)
+  reference_label <- trimws(reference_label)
+  corpus_label <- trimws(corpus_label)
+
+  embeddings <- normalizePath(file.path(project_dir, "embeddings"), mustWork = TRUE)
+
+  # Resolve embeddings model directory (model_id=...)
   emb_path <- embeddings
   meta_name <- "embed_model.yaml"
   legacy_meta_name <- "_tei_info.yaml"
@@ -59,6 +68,10 @@ distance_ridge <- function(
     factory_options = list(exclude_invalid_files = TRUE)
   )
 
+  if (!("label" %in% names(ds))) {
+    stop("Embeddings dataset has no `label` partition. Re-embed with `embed_corpus(label = ...)`.")
+  }
+
   vcols <- names(ds)
   vcols <- vcols[grepl("^V[0-9]+$", vcols)]
   if (!length(vcols)) {
@@ -66,33 +79,13 @@ distance_ridge <- function(
   }
   vcols <- vcols[order(as.integer(sub("^V", "", vcols)))]
 
-  if (verbose) {
-    message("Streaming batches to score ridge probabilities ...")
-  }
-
-  # Stream all rows to score margins
-  cols <- c("id", vcols)
-  if ("shard" %in% names(ds)) {
-    cols <- c(cols, "shard")
-  }
-  reader <- arrow::Scanner$create(
-    ds, # Dataset/Table/query
-    columns = cols,
-    batch_size = as.integer(batch_size)
-  )$ToRecordBatchReader()
-
-  # Output Preparation ----------------------------------------------------
-  if (!dir.exists(project_dir)) {
-    dir.create(project_dir, recursive = TRUE)
-  }
+  # Output preparation -----------------------------------------------------
   task_root <- file.path(project_dir, "distance_ridge")
   if (!dir.exists(task_root)) {
     dir.create(task_root, recursive = TRUE)
   }
 
-  # Create matching model_id directory under output
-  `%||%` <- function(x, y) if (is.null(x)) y else x
-  model_part <- basename(model_dir_emb) # try to use existing partition name
+  model_part <- basename(model_dir_emb)
   if (!grepl("^model_id=", model_part)) {
     meta_path <- file.path(model_dir_emb, meta_name)
     if (!file.exists(meta_path)) {
@@ -108,12 +101,18 @@ distance_ridge <- function(
       }
     }
   }
-  out_model_dir <- file.path(task_root, model_part)
-  if (!dir.exists(out_model_dir)) {
-    dir.create(out_model_dir, recursive = TRUE)
-    if (verbose) message("Created output model directory: ", out_model_dir)
+
+  corpus_label_part <- gsub("/", "_", corpus_label, fixed = TRUE)
+  out_model_dir <- file.path(
+    task_root,
+    model_part,
+    paste0("corpus_label=", corpus_label_part)
+  )
+  if (dir.exists(out_model_dir)) {
+    unlink(out_model_dir, recursive = TRUE)
   }
-  # Copy embedding metadata if present
+  dir.create(out_model_dir, recursive = TRUE, showWarnings = FALSE)
+
   meta_src <- file.path(model_dir_emb, meta_name)
   if (!file.exists(meta_src)) {
     meta_src <- file.path(model_dir_emb, legacy_meta_name)
@@ -121,119 +120,108 @@ distance_ridge <- function(
   meta_dst <- file.path(out_model_dir, meta_name)
   if (file.exists(meta_src)) {
     file.copy(meta_src, meta_dst, overwrite = TRUE)
-    if (verbose) message("Copied embed_model.yaml to ", meta_dst)
-  }
-  # Also ensure a copy in the project root
-  project_root <- normalizePath(project_dir, mustWork = FALSE)
-  if (file.exists(meta_src)) {
-    file.copy(
-      meta_src,
-      file.path(project_root, meta_name),
-      overwrite = TRUE
-    )
-    if (verbose) {
-      message(
-        "Copied embed_model.yaml to project root: ",
-        file.path(project_root, meta_name)
-      )
+    meta <- try(yaml::read_yaml(meta_dst), silent = TRUE)
+    if (!inherits(meta, "try-error") && is.list(meta)) {
+      meta$ridge_mode <- "reference_area"
+      meta$reference_label <- reference_label
+      meta$corpus_label <- corpus_label
+      meta$regularization <- regularization
+      yaml::write_yaml(meta, meta_dst)
     }
   }
 
-  idx <- 0L
-  no_shards <- nrow(ds) %/% batch_size + 1L
-  start_time <- Sys.time()
+  project_root <- normalizePath(project_dir, mustWork = FALSE)
+  ridge_fit_path <- fit_path %||% file.path(project_root, "ridge_fit.rds")
 
-  # Load model once (fit if needed) and store fit RDS at project root
-  ridge_fit_path <- file.path(project_root, "ridge_fit.rds")
-  fit <- fit_ridge(
-    embeddings = model_dir_emb,
-    included = read.csv(included)$id,
-    excluded = read.csv(excluded)$id,
-    output = ridge_fit_path,
-    verbose = verbose
-  ) |>
-    readRDS()
-  if (verbose) {
-    message("Loaded ridge fit from ", ridge_fit_path)
+  fit <- if (is.null(fit_path)) {
+    fit_ridge(
+      embeddings = model_dir_emb,
+      reference_label = reference_label,
+      output = ridge_fit_path,
+      regularization = regularization,
+      verbose = verbose
+    )
+    readRDS(ridge_fit_path)
+  } else {
+    if (!file.exists(fit_path)) {
+      stop("`fit_path` does not exist: ", fit_path)
+    }
+    readRDS(fit_path)
   }
 
-  # pb_id <- cli::cli_progress_bar("Processing batches", total = no_shards)
+  if (!inherits(fit, "ovc_reference_area_fit")) {
+    stop("Fit object is not an `ovc_reference_area_fit` model.")
+  }
+
+  if (verbose) {
+    message("Scoring corpus label '", corpus_label, "'...")
+  }
+
+  cols <- c("id", "label", vcols)
+  if ("batch" %in% names(ds)) {
+    cols <- c(cols, "batch")
+  }
+  reader <- arrow::Scanner$create(
+    ds,
+    columns = cols,
+    batch_size = as.integer(batch_size)
+  )$ToRecordBatchReader()
+
+  idx <- 0L
+  scored_rows <- 0L
+  seen_ids <- new.env(parent = emptyenv())
+  start_time <- Sys.time()
 
   repeat {
     batch <- reader$read_next_batch()
-    if (is.null(batch)) {
-      break
-    }
-
-    if (verbose) {
-      message("   Batch #", idx + 1L, " of at at least ", no_shards, " ...")
-    }
-
-    # if (no_shards > 1) {
-    #   cli::cli_progress_update(id = pb_id)
-    # }
+    if (is.null(batch)) break
 
     df <- as.data.frame(batch, stringsAsFactors = FALSE)
-    # Include shard if present as partition column
-    shard_col_present <- "shard" %in% names(df)
+    df <- df[df$label == corpus_label, c("id", vcols, intersect("batch", names(df))), drop = FALSE]
+    if (!nrow(df)) next
+
+    if (anyDuplicated(df$id)) {
+      stop("Duplicate ids found in corpus label partition.")
+    }
+    dup_global <- vapply(df$id, exists, logical(1), envir = seen_ids, inherits = FALSE)
+    if (any(dup_global)) {
+      stop("Duplicate ids found in corpus label partition across batches.")
+    }
+    for (idv in df$id) assign(idv, TRUE, envir = seen_ids)
+
     X <- as.matrix(df[, vcols, drop = FALSE])
-    preds <- as.numeric(predict(
-      object = fit,
-      newx = X,
-      s = s,
-      type = "response"
-    ))
-
-    # Simple per-batch constancy check (helps debug unexpected flat outputs)
-    if (verbose && length(preds) > 1 && sd(preds) == 0) {
-      message("Warning: predictions are constant within batch #", idx + 1L)
+    if (any(!is.finite(X))) {
+      stop("Non-finite embedding values found in corpus label partition.")
     }
 
-    if (shard_col_present) {
-      # Write under corresponding shard partitions to mirror embeddings
-      split_idx <- split(seq_len(nrow(df)), df$shard)
-      for (sh_name in names(split_idx)) {
-        rows <- split_idx[[sh_name]]
-        shard_df <- data.frame(
-          id = df$id[rows],
-          relevance_score = preds[rows],
-          check.names = FALSE
-        )
-        shard_dir <- file.path(out_model_dir, sprintf("shard=%s", sh_name))
-        if (!dir.exists(shard_dir)) {
-          dir.create(shard_dir, recursive = TRUE)
-        }
-        idx <- idx + 1L
-        path <- file.path(
-          shard_dir,
-          sprintf("ridge-logistic-%05d.parquet", idx)
-        )
-        arrow::write_parquet(shard_df, path)
-      }
-    } else {
-      # Fallback: write sequential shards under incrementing shard index
-      idx <- idx + 1L
-      shard_dir <- file.path(out_model_dir, sprintf("shard=%d", idx))
-      if (!dir.exists(shard_dir)) {
-        dir.create(shard_dir, recursive = TRUE)
-      }
-      path <- file.path(shard_dir, sprintf("ridge-logistic-%05d.parquet", idx))
-      shard_df <- data.frame(
-        id = df$id,
-        relevance_score = preds,
-        check.names = FALSE
-      )
-      arrow::write_parquet(shard_df, path)
-    }
+    area_distance <- .reference_area_md2(X, fit$mu, fit$Sigma_inv)
+    relevance_score <- exp(-0.5 * area_distance)
+
+    out_df <- data.frame(
+      id = df$id,
+      relevance_score = relevance_score,
+      area_distance = area_distance,
+      check.names = FALSE
+    )
+
+    idx <- idx + 1L
+    batch_id <- if ("batch" %in% names(df)) as.character(df$batch[[1]]) else as.character(idx)
+    shard_dir <- file.path(out_model_dir, sprintf("batch=%s", batch_id))
+    if (!dir.exists(shard_dir)) dir.create(shard_dir, recursive = TRUE)
+    arrow::write_parquet(out_df, file.path(shard_dir, sprintf("ridge-area-%05d.parquet", idx)))
+
+    scored_rows <- scored_rows + nrow(out_df)
   }
 
-  # cli::cli_progress_done(id = pb_id)
+  if (scored_rows == 0L) {
+    stop("No embeddings found for `corpus_label = ", corpus_label, "`.")
+  }
 
   elapsed <- Sys.time() - start_time
   cli::cli_alert_success(sprintf(
-    "Done! Processed %d works in %d batches in %s.",
-    nrow(ds),
-    no_shards,
+    "Done! Scored %d corpus rows in %d batches in %s.",
+    scored_rows,
+    idx,
     format(elapsed, digits = 2)
   ))
 
@@ -241,53 +229,45 @@ distance_ridge <- function(
 }
 
 
-#' Ridge logistic regression from embeddings parquet
+#' Fit a reference-area model from embeddings parquet
 #'
-#' Fits a cross-validated ridge-penalised logistic regression (`alpha = 0`)
-#' using embeddings stored in a Parquet dataset. Positives are given by
-#' `included` ids (label `1`) and negatives by `excluded` ids (label `0`).
+#' Fits a reference-area model (centroid + regularized covariance inverse)
+#' using rows from `reference_label`.
 #'
 #' @param embeddings Path to a Parquet dataset (file or directory opened by
-#'   Arrow) with columns `id` and `V1..Vd` (embedding dimensions).
-#' @param included Vector of `id` values to use as positive examples (label `1`).
-#' @param excluded Vector of `id` values to use as negative examples (label `0`).
-#' @param output Name of the `.rds` file into which to save the result.
-#' @param verbose Logical; print basic progress (not used at the moment).
+#'   Arrow) with columns `id`, `label`, and `V1..Vd`.
+#' @param reference_label Label partition used to define the reference area.
+#' @param output Name of the `.rds` file to save the fit object.
+#' @param regularization Positive numeric diagonal regularization added to
+#'   covariance.
+#' @param verbose Logical; print progress messages.
 #'
-#' @return A `cv.glmnet` fit object.
-#'
-#' @details
-#' The function locates embedding columns `V1..Vd`, collects the rows for
-#' `included` and `excluded` ids from the dataset, constructs a response vector
-#' (`1` for included, `0` for excluded), and runs `glmnet::cv.glmnet()` with
-#' `family = "binomial"` and ridge penalty (`alpha = 0`).
-#'
-#' @examples
-#' \dontrun{
-#' fit <- fit_ridge(
-#'   embeddings = "path/to/embeddings_dataset/",
-#'   included   = c("work1", "work2"),  # positives (y = 1)
-#'   excluded   = c("work3", "work4"),  # negatives (y = 0)
-#'   verbose    = TRUE
-#' )
-#' fit$lambda.min
-#' }
-#'
-#' @seealso [distance_ridge()]
-#' @importFrom dplyr if_else
-#' @importFrom glmnet cv.glmnet
+#' @return Invisibly returns `output`.
 #' @export
 fit_ridge <- function(
   embeddings,
-  included,
-  excluded,
+  reference_label = "reference",
   output,
+  regularization = 1e-6,
   verbose = TRUE
 ) {
+  if (!is.character(reference_label) || length(reference_label) != 1 || !nzchar(trimws(reference_label))) {
+    stop("`reference_label` must be a non-empty character string.")
+  }
+  if (!is.numeric(regularization) || length(regularization) != 1 || !is.finite(regularization) || regularization <= 0) {
+    stop("`regularization` must be a positive number.")
+  }
+
+  reference_label <- trimws(reference_label)
+
   ds <- arrow::open_dataset(
     embeddings,
     factory_options = list(exclude_invalid_files = TRUE)
   )
+
+  if (!("label" %in% names(ds))) {
+    stop("Embeddings dataset has no `label` partition. Re-embed with `embed_corpus(label = ...)`.")
+  }
 
   vcols <- names(ds)
   vcols <- vcols[grepl("^V[0-9]+$", vcols)]
@@ -296,43 +276,57 @@ fit_ridge <- function(
   }
   vcols <- vcols[order(as.integer(sub("^V", "", vcols)))]
 
-  # Check presence of requested ids (collect only ids)
-  pos_ids <- ds |>
-    dplyr::filter(id %in% included) |>
-    dplyr::select(id) |>
-    dplyr::collect()
-
-  if (nrow(pos_ids) == 0) {
-    stop("None of the `included` ids were found in embeddings dataset.")
-  }
-
-  miss_inc <- setdiff(included, pos_ids$id)
-  if (length(miss_inc)) {
-    warning(
-      "Some included ids not found: ",
-      paste(head(miss_inc, 10), collapse = ", "),
-      if (length(miss_inc) > 10) " …"
-    )
-  }
-
   df <- ds |>
-    dplyr::filter(id %in% c(included, excluded)) |>
-    dplyr::select(
-      id,
-      dplyr::all_of(vcols)
-    ) |>
-    dplyr::mutate(
-      label = if_else(id %in% included, 1L, 0L)
-    ) |>
+    dplyr::filter(label == reference_label) |>
+    dplyr::select(dplyr::all_of(vcols)) |>
     dplyr::collect()
 
-  result <- glmnet::cv.glmnet(
-    x = as.matrix(df[, vcols]),
-    y = unlist(df$label),
-    family = "binomial",
-    alpha = 0, # L2 penalty (ridge)
-    nfolds = 5
+  if (!nrow(df)) {
+    stop("No embeddings found for `reference_label = ", reference_label, "`.")
+  }
+
+  X <- as.matrix(df[, vcols, drop = FALSE])
+  if (any(!is.finite(X))) {
+    stop("Non-finite embedding values found in reference label partition.")
+  }
+
+  mu <- colMeans(X)
+
+  d <- ncol(X)
+  if (nrow(X) < 2L) {
+    warning("Reference set has < 2 rows; using diagonal covariance fallback.")
+    Sigma <- diag(rep(1, d))
+  } else {
+    Sigma <- stats::cov(X)
+    if (!all(is.finite(Sigma))) {
+      stop("Covariance computation failed due to non-finite values.")
+    }
+  }
+
+  Sigma_reg <- Sigma + diag(regularization, nrow = d, ncol = d)
+  Sigma_inv <- try(solve(Sigma_reg), silent = TRUE)
+  if (inherits(Sigma_inv, "try-error") || any(!is.finite(Sigma_inv))) {
+    stop("Could not invert regularized covariance matrix; increase `regularization`.")
+  }
+
+  fit <- list(
+    mode = "reference_area",
+    reference_label = reference_label,
+    regularization = regularization,
+    vcols = vcols,
+    mu = as.numeric(mu),
+    Sigma_inv = unname(Sigma_inv)
   )
-  saveRDS(result, file = output)
-  return(output)
+  class(fit) <- c("ovc_reference_area_fit", "list")
+
+  saveRDS(fit, file = output)
+  if (verbose) {
+    message("Saved reference-area fit to ", output)
+  }
+  invisible(output)
+}
+
+.reference_area_md2 <- function(X, mu, Sigma_inv) {
+  delta <- sweep(X, 2, mu, FUN = "-")
+  rowSums((delta %*% Sigma_inv) * delta)
 }

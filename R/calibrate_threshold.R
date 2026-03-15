@@ -5,20 +5,12 @@
 #' range on the labeled subset; second to accumulate confusion counts across a
 #' fixed grid of thresholds. Returns the best threshold per the chosen metric.
 #'
-#' You can provide labels either as two vectors of ids (`included`/`excluded`)
-#' or as a separate labels Parquet with columns `id` and `label` (`0/1`).
-#'
 #' @param scores_parquet Path to a Parquet dataset (file or directory) with at
 #'   least columns `id` and the score column.
 #' @param score_col Name of the score column to calibrate (e.g., "ensemble",
 #'   "relevance_score", or "margin").
-#' @param included Path to a CSV file with a column `id` of positive examples
-#'   (label `1`). Ignored when `labels_parquet` is provided.
-#' @param excluded Path to a CSV file with a column `id` of negative examples
-#'   (label `0`). Ignored when `labels_parquet` is provided.
-#' @param labels_parquet Optional Parquet dataset path with columns `id` and
-#'   `label` (`0/1`). If provided, it is collected in-memory and matched on `id`.
-#'   Prefer this when the labeled set is reasonably small.
+#' @param labels_parquet Parquet dataset path with columns `id` and
+#'   `label` (`0/1`) used for calibration labels.
 #' @param metric Optimisation target: `"f1"` (default) or
 #'   `"precision_at_recall"`.
 #' @param recall_min Minimum recall required when `metric = "precision_at_recall"`.
@@ -38,8 +30,7 @@
 #' best <- calibrate_threshold(
 #'   scores_parquet = "output/scores/",
 #'   score_col = "ensemble",
-#'   included = "included.csv",
-#'   excluded = "excluded.csv",
+#'   labels_parquet = "output/labels/",
 #'   batch_size = 200000
 #' )
 #' best$th
@@ -51,9 +42,7 @@
 calibrate_threshold <- function(
   scores_parquet,
   score_col,
-  included = NULL,
-  excluded = NULL,
-  labels_parquet = NULL,
+  labels_parquet,
   metric = c("f1", "precision_at_recall"),
   recall_min = 0.8,
   thresholds = NULL,
@@ -61,37 +50,26 @@ calibrate_threshold <- function(
   batch_size = 100000,
   verbose = TRUE
 ) {
-  included <- read.csv(included)$id
-  excluded <- read.csv(excluded)$id
   stopifnot(is.character(score_col), length(score_col) == 1)
-  if (is.null(labels_parquet)) {
-    if (is.null(included) || is.null(excluded)) {
-      stop(
-        "Provide either `included` and `excluded` id vectors, or `labels_parquet`."
-      )
-    }
-    included <- unique(included)
-    excluded <- unique(excluded)
+  if (missing(labels_parquet) || is.null(labels_parquet) || !nzchar(labels_parquet)) {
+    stop("`labels_parquet` is required and must be a valid dataset path.")
   }
 
   metric <- match.arg(metric)
 
-  # Optional labels from parquet (collected in-memory; assumed small)
-  labels_df <- NULL
-  if (!is.null(labels_parquet)) {
-    lab_ds <- arrow::open_dataset(
-      labels_parquet,
-      factory_options = list(exclude_invalid_files = TRUE)
-    )
-    lab_cols <- c("id", "label")
-    if (!all(lab_cols %in% names(lab_ds))) {
-      stop("`labels_parquet` must have columns: id, label")
-    }
-    labels_df <- dplyr::collect(arrow::Scanner$create(
-      lab_ds,
-      columns = lab_cols
-    )$ToTable())
+  # Labels from parquet (collected in-memory; assumed small)
+  lab_ds <- arrow::open_dataset(
+    labels_parquet,
+    factory_options = list(exclude_invalid_files = TRUE)
+  )
+  lab_cols <- c("id", "label")
+  if (!all(lab_cols %in% names(lab_ds))) {
+    stop("`labels_parquet` must have columns: id, label")
   }
+  labels_df <- dplyr::collect(arrow::Scanner$create(
+    lab_ds,
+    columns = lab_cols
+  )$ToTable())
 
   ds <- arrow::open_dataset(
     scores_parquet,
@@ -103,24 +81,15 @@ calibrate_threshold <- function(
 
   # Helper to attach labels to a batch data.frame and filter to labeled rows
   attach_labels <- function(df) {
-    if (!is.null(labels_df)) {
-      df <- merge(
-        df[, c("id", score_col)],
-        labels_df,
-        by = "id",
-        all.x = FALSE,
-        all.y = FALSE
-      )
-      df <- df[!is.na(df$label), , drop = FALSE]
-      df$label <- as.integer(df$label)
-      return(df)
-    }
-    keep <- df$id %in% included | df$id %in% excluded
-    if (!any(keep)) {
-      return(df[0, , drop = FALSE])
-    }
-    df <- df[keep, c("id", score_col), drop = FALSE]
-    df$label <- ifelse(df$id %in% included, 1L, 0L)
+    df <- merge(
+      df[, c("id", score_col)],
+      labels_df,
+      by = "id",
+      all.x = FALSE,
+      all.y = FALSE
+    )
+    df <- df[!is.na(df$label), , drop = FALSE]
+    df$label <- as.integer(df$label)
     df
   }
 

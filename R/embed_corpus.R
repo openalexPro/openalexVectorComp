@@ -20,10 +20,13 @@
 #' @param save_text Logical; if `TRUE` (default), store the cleaned embedding
 #'   text in output Parquet files as column `text`. If `FALSE`, only `text_hash`
 #'   is stored.
+#' @param label Partition label written under
+#'   `project_dir/embeddings/model_id=<...>/label=<label>/batch=<n>/`.
+#'   Defaults to `"corpus"`.
 #' @param dry_run Logical; if `TRUE`, run preprocessing and unchanged-row
 #'   filtering without requesting embeddings or writing output files. In this
 #'   mode, a Parquet preview file is written to
-#'   `project_dir/dry_run_cleaning_model_id=<model>.parquet`.
+#'   `project_dir/dry_run_cleaning_model_id=<model>_label=<label>.parquet`.
 #' @param verbose Logical; print progress and summary messages.
 #'
 #' @return Invisibly the model-specific embeddings directory under
@@ -37,6 +40,7 @@ embed_corpus <- function(
   text_preprocessor = clean_abstract_for_embedding,
   cleaner_args = list(),
   save_text = TRUE,
+  label = "corpus",
   dry_run = FALSE,
   verbose = TRUE
 ) {
@@ -60,10 +64,14 @@ embed_corpus <- function(
   if (!is.logical(save_text) || length(save_text) != 1 || is.na(save_text)) {
     stop("`save_text` must be TRUE or FALSE.")
   }
+  if (!is.character(label) || length(label) != 1 || !nzchar(trimws(label))) {
+    stop("`label` must be a non-empty character string.")
+  }
   if (!is.logical(dry_run) || length(dry_run) != 1 || is.na(dry_run)) {
     stop("`dry_run` must be TRUE or FALSE.")
   }
   batch_size <- as.integer(batch_size)
+  label <- trimws(label)
 
   corpus <- normalizePath(file.path(project_dir, "corpus"), mustWork = TRUE)
   ds <- arrow::open_dataset(corpus)
@@ -86,10 +94,12 @@ embed_corpus <- function(
   }
   model_part <- gsub("/", "_", model_id, fixed = TRUE)
   model_dir <- file.path(emb_root, paste0("model_id=", model_part))
+  label_part <- gsub("/", "_", label, fixed = TRUE)
+  label_dir <- file.path(model_dir, paste0("label=", label_part))
 
   if (!isTRUE(dry_run)) {
-    if (dir.exists(model_dir) && isTRUE(delete_existing)) {
-      unlink(model_dir, recursive = TRUE)
+    if (dir.exists(label_dir) && isTRUE(delete_existing)) {
+      unlink(label_dir, recursive = TRUE)
     }
     if (!dir.exists(model_dir)) {
       dir.create(model_dir, recursive = TRUE)
@@ -117,10 +127,20 @@ embed_corpus <- function(
       mode = cleaner_args$mode %||% NA_character_,
       no_abstract_policy = cleaner_args$no_abstract_policy %||% NA_character_
     )
+    meta$embedding_label <- label
     yaml::write_yaml(meta, meta_path)
 
     if (verbose) {
       message("Wrote backend metadata to ", meta_path)
+    }
+
+    if (!dir.exists(label_dir)) {
+      dir.create(label_dir, recursive = TRUE)
+      if (verbose) {
+        message("Created label output directory: ", label_dir)
+      }
+    } else if (verbose) {
+      message("Reusing existing label output directory: ", label_dir)
     }
   } else if (verbose) {
     message("Dry run mode: no embeddings will be requested and no files will be written.")
@@ -149,11 +169,12 @@ embed_corpus <- function(
     )
   }
 
-  existing_hash <- setNames(character(), character())
+  existing_hash <- stats::setNames(character(), character())
   if (!delete_existing) {
     idx_ds <- try(
       arrow::open_dataset(
         model_dir,
+        paste0("label=", label_part),
         factory_options = list(exclude_invalid_files = TRUE)
       ),
       silent = TRUE
@@ -237,7 +258,11 @@ embed_corpus <- function(
     list(cleaned_title = cleaned_title, cleaned_abstract = cleaned_abstract)
   }
 
-  dry_run_file <- file.path(project_dir, sprintf("dry_run_cleaning_model_id=%s.parquet", model_part))
+  dry_run_file <- file.path(project_dir, sprintf(
+    "dry_run_cleaning_model_id=%s_label=%s.parquet",
+    model_part,
+    label_part
+  ))
   dry_run_preview <- list()
   if (isTRUE(dry_run) && file.exists(dry_run_file)) {
     unlink(dry_run_file)
@@ -329,7 +354,7 @@ embed_corpus <- function(
     existing_hash[df$id] <- df$text_hash
 
     shard_idx <- shard_idx + 1L
-    shard_dir <- file.path(model_dir, sprintf("batch=%d", shard_idx))
+    shard_dir <- file.path(label_dir, sprintf("batch=%d", shard_idx))
     if (!dir.exists(shard_dir)) {
       dir.create(shard_dir, recursive = TRUE)
     }

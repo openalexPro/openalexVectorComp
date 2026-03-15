@@ -2,40 +2,43 @@
 % Please edit documentation in R/distance_ridge.R
 \name{distance_ridge}
 \alias{distance_ridge}
-\title{Predict probabilities from a ridge logistic \code{cv.glmnet} fit}
+\title{Score corpus embeddings by distance to a reference embedding area}
 \usage{
 distance_ridge(
   project_dir,
-  included = included,
-  excluded = excluded,
-  s = c("lambda.min", "lambda.1se"),
+  reference_label = "reference",
+  corpus_label = "corpus",
+  fit_path = NULL,
   batch_size = 1e+05,
+  regularization = 1e-06,
   verbose = TRUE
 )
 }
 \arguments{
-\item{project_dir}{Project root.
-Must contain a folder \code{embeddings} containing the embeddings.
-Scores are written under
-\verb{project_dir/distance_ridge/model_id=<...>/shard=<n>/} and the fitted model
-RDS is saved to \code{project_dir/ridge_fit.rds}. The \code{embed_model.yaml} is copied
-to both the model folder and the project root.}
+\item{project_dir}{Project root containing \verb{embeddings/}.}
 
-\item{s}{Lambda to use; one of \code{"lambda.min"} or \code{"lambda.1se"} (default
-\code{"lambda.min"}).}
+\item{reference_label}{Label partition used to fit the reference area.
+Defaults to \code{"reference"}.}
+
+\item{corpus_label}{Label partition to score. Defaults to \code{"corpus"}.}
+
+\item{fit_path}{Optional path to an existing reference-area fit (\code{.rds}). If
+\code{NULL}, a new fit is created at \code{project_dir/ridge_fit.rds}.}
 
 \item{batch_size}{Approximate number of rows per Arrow scan batch.}
+
+\item{regularization}{Diagonal covariance regularization added before
+inversion.}
 
 \item{verbose}{Logical; print progress messages.}
 }
 \value{
 Invisibly the model output directory under
-\verb{project_dir/distance_ridge/model_id=<...>/}.
+\verb{project_dir/distance_ridge/model_id=<...>/corpus_label=<...>/}.
 }
 \description{
-Streams an embeddings Parquet dataset in batches, applies a trained ridge
-logistic model, and writes Parquet outputs mirroring the embeddings layout:
-\verb{model_id=<...>/shard=<n>/ridge-logistic-*.parquet} with columns \code{id} and
-\code{relevance_score}. Also writes the fitted model as \code{ridge_fit.rds} into the
-corresponding \verb{model_id=<...>} directory and copies \code{embed_model.yaml} there.
+Fits (or loads) a reference-area model from \code{reference_label} embeddings and
+scores only rows in \code{corpus_label} using squared Mahalanobis distance.
+Distances are converted to relevance via
+\code{relevance_score = exp(-0.5 * area_distance)}.
 }

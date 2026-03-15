@@ -187,8 +187,10 @@ testthat::test_that("embed_corpus respects delete_existing and skip unchanged ro
 
   batch_files <- list.files(model_dir, pattern = "embeddings-.*[.]parquet$", recursive = TRUE, full.names = TRUE)
   testthat::expect_length(batch_files, 1L)
+  testthat::expect_true(any(grepl("label=corpus", batch_files, fixed = TRUE)))
 
-  marker <- file.path(model_dir, "to_be_deleted.txt")
+  marker <- file.path(model_dir, "label=corpus", "to_be_deleted.txt")
+  dir.create(dirname(marker), recursive = TRUE, showWarnings = FALSE)
   file.create(marker)
   testthat::expect_true(file.exists(marker))
 
@@ -235,6 +237,86 @@ testthat::test_that("embed_corpus respects delete_existing and skip unchanged ro
   )
   testthat::expect_identical(model_dir3, model_dir)
   testthat::expect_false(file.exists(marker))
+})
+
+testthat::test_that("embed_corpus label partitions can coexist and delete_existing is label-scoped", {
+  proj <- make_tmp_corpus_project()
+  backend <- openalexVectorComp::embedding_backend_config(provider = "hf")
+
+  model_dir <- testthat::with_mocked_bindings(
+    openalexVectorComp::embed_corpus(
+      project_dir = proj,
+      backend = backend,
+      batch_size = 2,
+      label = "corpus",
+      delete_existing = FALSE,
+      verbose = FALSE
+    ),
+    embed_texts = function(texts, backend) {
+      matrix(1, nrow = length(texts), ncol = 2, dimnames = list(NULL, c("V1", "V2")))
+    },
+    .package = "openalexVectorComp"
+  )
+
+  testthat::with_mocked_bindings(
+    openalexVectorComp::embed_corpus(
+      project_dir = proj,
+      backend = backend,
+      batch_size = 2,
+      label = "reference",
+      delete_existing = FALSE,
+      verbose = FALSE
+    ),
+    embed_texts = function(texts, backend) {
+      matrix(2, nrow = length(texts), ncol = 2, dimnames = list(NULL, c("V1", "V2")))
+    },
+    .package = "openalexVectorComp"
+  )
+
+  corpus_files_before <- list.files(
+    file.path(model_dir, "label=corpus"),
+    pattern = "embeddings-.*[.]parquet$",
+    recursive = TRUE,
+    full.names = TRUE
+  )
+  ref_files_before <- list.files(
+    file.path(model_dir, "label=reference"),
+    pattern = "embeddings-.*[.]parquet$",
+    recursive = TRUE,
+    full.names = TRUE
+  )
+  testthat::expect_gt(length(corpus_files_before), 0L)
+  testthat::expect_gt(length(ref_files_before), 0L)
+
+  testthat::with_mocked_bindings(
+    openalexVectorComp::embed_corpus(
+      project_dir = proj,
+      backend = backend,
+      batch_size = 2,
+      label = "reference",
+      delete_existing = TRUE,
+      verbose = FALSE
+    ),
+    embed_texts = function(texts, backend) {
+      matrix(3, nrow = length(texts), ncol = 2, dimnames = list(NULL, c("V1", "V2")))
+    },
+    .package = "openalexVectorComp"
+  )
+
+  corpus_files_after <- list.files(
+    file.path(model_dir, "label=corpus"),
+    pattern = "embeddings-.*[.]parquet$",
+    recursive = TRUE,
+    full.names = TRUE
+  )
+  ref_files_after <- list.files(
+    file.path(model_dir, "label=reference"),
+    pattern = "embeddings-.*[.]parquet$",
+    recursive = TRUE,
+    full.names = TRUE
+  )
+  testthat::expect_equal(sort(corpus_files_after), sort(corpus_files_before))
+  testthat::expect_gt(length(ref_files_after), 0L)
 })
 
 testthat::test_that("embed_corpus accepts custom text_preprocessor and cleaner_args", {
@@ -372,7 +454,11 @@ testthat::test_that("embed_corpus dry_run preprocesses but does not write embedd
 
   preview_file <- file.path(
     proj,
-    sprintf("dry_run_cleaning_model_id=%s.parquet", gsub("/", "_", backend$model, fixed = TRUE))
+    sprintf(
+      "dry_run_cleaning_model_id=%s_label=%s.parquet",
+      gsub("/", "_", backend$model, fixed = TRUE),
+      "corpus"
+    )
   )
   testthat::expect_true(file.exists(preview_file))
   preview <- arrow::read_parquet(preview_file)

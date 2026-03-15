@@ -7,9 +7,7 @@
 calibrate_threshold(
   scores_parquet,
   score_col,
-  included = NULL,
-  excluded = NULL,
-  labels_parquet = NULL,
+  labels_parquet,
   metric = c("f1", "precision_at_recall"),
   recall_min = 0.8,
   thresholds = NULL,
@@ -25,15 +23,8 @@ least columns \code{id} and the score column.}
 \item{score_col}{Name of the score column to calibrate (e.g., "ensemble",
 "relevance_score", or "margin").}
 
-\item{included}{Path to a CSV file with a column \code{id} of positive examples
-(label \code{1}). Ignored when \code{labels_parquet} is provided.}
-
-\item{excluded}{Path to a CSV file with a column \code{id} of negative examples
-(label \code{0}). Ignored when \code{labels_parquet} is provided.}
-
-\item{labels_parquet}{Optional Parquet dataset path with columns \code{id} and
-\code{label} (\code{0/1}). If provided, it is collected in-memory and matched on \code{id}.
-Prefer this when the labeled set is reasonably small.}
+\item{labels_parquet}{Parquet dataset path with columns \code{id} and
+\code{label} (\code{0/1}) used for calibration labels.}
 
 \item{metric}{Optimisation target: \code{"f1"} (default) or
 \code{"precision_at_recall"}.}
@@ -61,17 +52,12 @@ loading all rows into memory. Uses two passes: first to determine the score
 range on the labeled subset; second to accumulate confusion counts across a
 fixed grid of thresholds. Returns the best threshold per the chosen metric.
 }
-\details{
-You can provide labels either as two vectors of ids (\code{included}/\code{excluded})
-or as a separate labels Parquet with columns \code{id} and \code{label} (\code{0/1}).
-}
 \examples{
 \dontrun{
 best <- calibrate_threshold(
   scores_parquet = "output/scores/",
   score_col = "ensemble",
-  included = "included.csv",
-  excluded = "excluded.csv",
+  labels_parquet = "output/labels/",
   batch_size = 200000
 )
 best$th

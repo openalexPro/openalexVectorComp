@@ -12,6 +12,7 @@ embed_corpus(
   text_preprocessor = clean_abstract_for_embedding,
   cleaner_args = list(),
   save_text = TRUE,
+  label = "corpus",
   dry_run = FALSE,
   verbose = TRUE
 )
@@ -40,10 +41,14 @@ Defaults to \code{\link[=clean_abstract_for_embedding]{clean_abstract_for_embedd
 text in output Parquet files as column \code{text}. If \code{FALSE}, only \code{text_hash}
 is stored.}
 
+\item{label}{Partition label written under
+\verb{project_dir/embeddings/model_id=<...>/label=<label>/batch=<n>/}.
+Defaults to \code{"corpus"}.}
+
 \item{dry_run}{Logical; if \code{TRUE}, run preprocessing and unchanged-row
 filtering without requesting embeddings or writing output files. In this
-mode, a CSV preview file is written to
-\code{project_dir/dry_run_cleaning_model_id=<model>.parquet}.}
+mode, a Parquet preview file is written to
+\verb{project_dir/dry_run_cleaning_model_id=<model>_label=<label>.parquet}.}
 
 \item{verbose}{Logical; print progress and summary messages.}
 }

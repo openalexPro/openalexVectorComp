@@ -1,5 +1,8 @@
 ^vignettes/\.quarto$
-^vignettes/*_files$
+^vignettes/.*_files$
 ^IMPLEMENTATION_NOTES\.md$
 ^doc$
 ^Meta$
+^inst/ASR$
+^inst/examples$
+^inst/qdrant\ functions*$

@@ -119,6 +119,10 @@ For each row:
 - `created_at`
 - `V1..Vd`
 
+Embeddings are stored by partition path:
+
+- `embeddings/model_id=<...>/label=<...>/batch=<n>/embeddings-*.parquet`
+
 # Shared Backend Rules
 
 All provider adapters should follow these rules:

@@ -162,7 +162,7 @@ sequenceDiagram
 
 Embeddings are written under:
 
-- `project_dir/embeddings/model_id=<model>/batch=*/embeddings-*.parquet`
+- `project_dir/embeddings/model_id=<model>/label=<label>/batch=*/embeddings-*.parquet`
 - metadata in:
   - `project_dir/embeddings/model_id=<model>/embed_model.yaml`
 
@@ -170,7 +170,7 @@ Embeddings are written under:
 
 When `dry_run = TRUE`, no embeddings are written. Instead:
 
-- `project_dir/dry_run_cleaning_model_id=<model>.parquet`
+- `project_dir/dry_run_cleaning_model_id=<model>_label=<label>.parquet`
 
 This file supports auditing preprocessing behavior (including custom cleaners).
 
@@ -178,8 +178,8 @@ This file supports auditing preprocessing behavior (including custom cleaners).
 flowchart TB
   A[project_dir/corpus] --> B[embed_corpus]
   B --> C[model_id=.../embed_model.yaml]
-  B --> D[model_id=.../batch=*/embeddings-*.parquet]
-  B --> E[dry_run_cleaning_model_id=...parquet]
+  B --> D[model_id=.../label=.../batch=*/embeddings-*.parquet]
+  B --> E[dry_run_cleaning_model_id=..._label=...parquet]
 ```
 
 # Text-Preparation Contract
@@ -208,17 +208,18 @@ Optional columns are preserved and can be persisted (e.g., quality flags).
 The package supports two complementary relevance styles:
 
 1. **Prototype distance**
-   - interpretable geometric signal from included/excluded centroids.
+   - pairwise cosine distances between reference and corpus label partitions.
 
-2. **Ridge logistic score**
-   - supervised linear decision in embedding space.
+2. **Reference-area score (`distance_ridge`)**
+   - Mahalanobis-style distance to the reference label area, converted to
+     `relevance_score`.
 
 Use one or both, then calibrate threshold for target operating behavior.
 
 ```{mermaid}
 flowchart LR
   A[Embeddings] --> B[Prototype distance]
-  A --> C[Ridge logistic score]
+  A --> C[Reference-area score]
   B --> D[Ranked candidates]
   C --> D
   D --> E[calibrate_threshold]
@@ -241,20 +242,37 @@ model_dir <- embed_corpus(
   backend = backend,
   batch_size = 5000,
   delete_existing = FALSE,
+  label = "corpus",
   save_text = TRUE
 )
 
+embed_corpus(
+  project_dir = "my_project",
+  backend = backend,
+  batch_size = 5000,
+  delete_existing = FALSE,
+  label = "reference",
+  save_text = TRUE
+)
+
+pairwise_dir <- distance_prototype(
+  project_dir = "my_project",
+  embeddings_dir = basename(model_dir),
+  corpus_label = "corpus",
+  reference_label = "reference"
+)
+
+# Optional supervised scoring path
 scores_dir <- distance_ridge(
   project_dir = "my_project",
-  included = "included.csv",
-  excluded = "excluded.csv"
+  reference_label = "reference",
+  corpus_label = "corpus"
 )
 
 best <- calibrate_threshold(
   scores_parquet = scores_dir,
   score_col = "relevance_score",
-  included = "included.csv",
-  excluded = "excluded.csv"
+  labels_parquet = "labels.parquet"
 )
 ```
 

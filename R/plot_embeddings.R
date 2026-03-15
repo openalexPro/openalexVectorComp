@@ -1,17 +1,18 @@
-#' Plot embeddings via PCA, colored by inclusion/exclusion
+#' Plot embeddings via PCA, colored by arbitrary labels
 #'
 #' Reads an embeddings Parquet dataset (produced by [embed_corpus()]) with columns
 #' `id` and `V1..Vd`, computes a PCA on the embedding matrix, and returns a
 #' scatter plot of the first two principal components. Points are colored by
-#' whether their `id` is listed in `included` (green), `excluded` (red), or
-#' neither (grey).
+#' labels provided via `labels`. Rows not found in `labels` are shown as
+#' `"other"`.
 #'
 #' @param embeddings Path to a Parquet file or dataset directory containing
 #'   columns `id` and `V1..Vd`.
-#' @param included Either a character vector of ids, or the path to a CSV file
-#'   with a column named `id`.
-#' @param excluded Either a character vector of ids, or the path to a CSV file
-#'   with a column named `id`.
+#' @param labels Label mapping for ids. Supported formats:
+#'   1) data frame with columns `id` and `label`,
+#'   2) path to CSV with columns `id` and `label`,
+#'   3) named character vector where names are ids and values are labels,
+#'   4) named list where each element is an id vector for that label.
 #' @param center,scale. Passed to [stats::prcomp()] for PCA. Defaults
 #'   `center = TRUE`, `scale. = FALSE`.
 #' @param point_size,alpha Point size and transparency for points in the plot.
@@ -24,8 +25,10 @@
 #' \dontrun{
 #' p <- plot_embeddings_pca(
 #'   embeddings = "inst/examples/embedings/",
-#'   included = "inst/examples/included_part.csv",
-#'   excluded = "inst/examples/excluded_part.csv"
+#'   labels = data.frame(
+#'     id = c("W1", "W2", "W10"),
+#'     label = c("reference", "reference", "corpus")
+#'   )
 #' )
 #' print(p)
 #' }
@@ -36,27 +39,13 @@
 #' @export
 plot_embeddings_pca <- function(
   embeddings,
-  included,
-  excluded,
+  labels,
   center = TRUE,
   scale. = FALSE,
   point_size = 2,
   alpha = 0.5
 ) {
-  # Helper to resolve ids from vector or CSV path
-  resolve_ids <- function(x) {
-    if (length(x) == 1L && is.character(x) && file.exists(x)) {
-      df <- utils::read.csv(x, stringsAsFactors = FALSE)
-      if (!"id" %in% names(df)) {
-        stop("CSV at ", x, " must have a column named 'id'.")
-      }
-      as.character(df$id)
-    } else {
-      as.character(x)
-    }
-  }
-  incl_ids <- unique(resolve_ids(included))
-  excl_ids <- unique(resolve_ids(excluded))
+  labels_df <- .plot_resolve_labels(labels)
 
   ds <- arrow::open_dataset(
     embeddings,
@@ -73,15 +62,15 @@ plot_embeddings_pca <- function(
     dplyr::select(id, dplyr::all_of(vcols)) |>
     dplyr::collect()
 
-  # Labels with precedence: included > excluded > other
+  # Labels with precedence by row order in labels_df; default to "other".
   lab <- rep("other", nrow(df))
-  if (length(excl_ids)) {
-    lab[df$id %in% excl_ids] <- "excluded"
+  if (nrow(labels_df)) {
+    idx <- match(df$id, labels_df$id)
+    has_lab <- !is.na(idx)
+    lab[has_lab] <- labels_df$label[idx[has_lab]]
   }
-  if (length(incl_ids)) {
-    lab[df$id %in% incl_ids] <- "included"
-  }
-  lab <- factor(lab, levels = c("included", "excluded", "other"))
+  label_levels <- unique(c(sort(unique(labels_df$label)), "other"))
+  lab <- factor(lab, levels = label_levels)
 
   X <- as.matrix(df[, vcols, drop = FALSE])
   pc <- stats::prcomp(X, center = center, scale. = scale.)
@@ -95,21 +84,15 @@ plot_embeddings_pca <- function(
 
   ggplot2::ggplot(plot_df, ggplot2::aes(PC1, PC2, color = group)) +
     ggplot2::geom_point(alpha = alpha, size = point_size) +
-    ggplot2::scale_color_manual(
-      values = c(
-        included = "#1b9e77",
-        excluded = "#d95f02",
-        other = "#aaaaaa"
-      )
-    ) +
+    ggplot2::scale_color_hue() +
     ggplot2::labs(color = "Group") +
     ggplot2::theme_minimal()
 }
 
-#' Plot embeddings via UMAP, colored by inclusion/exclusion
+#' Plot embeddings via UMAP, colored by arbitrary labels
 #'
 #' Computes a 2D UMAP projection of `V1..Vd` and returns a scatter plot colored
-#' by `included`/`excluded` membership. Uses cosine distance by default to align
+#' by `labels` membership. Uses cosine distance by default to align
 #' with common embedding similarity.
 #'
 #' @inheritParams plot_embeddings_pca
@@ -126,8 +109,7 @@ plot_embeddings_pca <- function(
 #' @export
 plot_embeddings_umap <- function(
   embeddings,
-  included,
-  excluded,
+  labels,
   n_neighbors = 15,
   min_dist = 0.1,
   metric = "cosine",
@@ -137,18 +119,7 @@ plot_embeddings_umap <- function(
   point_size = 2,
   alpha = 0.5
 ) {
-  # Resolve ids
-  resolve_ids <- function(x) {
-    if (length(x) == 1L && is.character(x) && file.exists(x)) {
-      df <- utils::read.csv(x, stringsAsFactors = FALSE)
-      if (!"id" %in% names(df)) stop("CSV at ", x, " must have a column named 'id'.")
-      as.character(df$id)
-    } else {
-      as.character(x)
-    }
-  }
-  incl_ids <- unique(resolve_ids(included))
-  excl_ids <- unique(resolve_ids(excluded))
+  labels_df <- .plot_resolve_labels(labels)
 
   ds <- arrow::open_dataset(
     embeddings,
@@ -165,15 +136,20 @@ plot_embeddings_umap <- function(
 
   # Optional sampling
   if (!is.null(sample_n) && is.finite(sample_n) && sample_n < nrow(df)) {
+    `%||%` <- function(x, y) if (is.null(x)) y else x
     set.seed(seed %||% 1)
     idx <- sample.int(nrow(df), sample_n)
     df <- df[idx, , drop = FALSE]
   }
 
   lab <- rep("other", nrow(df))
-  if (length(excl_ids)) lab[df$id %in% excl_ids] <- "excluded"
-  if (length(incl_ids)) lab[df$id %in% incl_ids] <- "included"
-  lab <- factor(lab, levels = c("included", "excluded", "other"))
+  if (nrow(labels_df)) {
+    idx <- match(df$id, labels_df$id)
+    has_lab <- !is.na(idx)
+    lab[has_lab] <- labels_df$label[idx[has_lab]]
+  }
+  label_levels <- unique(c(sort(unique(labels_df$label)), "other"))
+  lab <- factor(lab, levels = label_levels)
 
   X <- as.matrix(df[, vcols, drop = FALSE])
   if (!is.null(seed)) set.seed(seed)
@@ -196,9 +172,56 @@ plot_embeddings_umap <- function(
 
   ggplot2::ggplot(plot_df, ggplot2::aes(U1, U2, color = group)) +
     ggplot2::geom_point(alpha = alpha, size = point_size) +
-    ggplot2::scale_color_manual(
-      values = c(included = "#1b9e77", excluded = "#d95f02", other = "#aaaaaa")
-    ) +
+    ggplot2::scale_color_hue() +
     ggplot2::labs(color = "Group") +
     ggplot2::theme_minimal()
+}
+
+.plot_resolve_labels <- function(labels) {
+  as_labels_df <- function(df) {
+    if (!all(c("id", "label") %in% names(df))) {
+      stop("Label data must contain columns 'id' and 'label'.")
+    }
+    out <- data.frame(
+      id = as.character(df$id),
+      label = as.character(df$label),
+      stringsAsFactors = FALSE
+    )
+    out <- out[!is.na(out$id) & nzchar(out$id) & !is.na(out$label) & nzchar(out$label), , drop = FALSE]
+    if (anyDuplicated(out$id)) {
+      stop("Label mapping contains duplicated ids.")
+    }
+    out
+  }
+
+  if (is.data.frame(labels)) {
+    return(as_labels_df(labels))
+  }
+  if (is.character(labels) && length(labels) == 1L && file.exists(labels)) {
+    return(as_labels_df(utils::read.csv(labels, stringsAsFactors = FALSE)))
+  }
+  if (is.character(labels) && !is.null(names(labels))) {
+    out <- data.frame(
+      id = as.character(names(labels)),
+      label = as.character(unname(labels)),
+      stringsAsFactors = FALSE
+    )
+    return(as_labels_df(out))
+  }
+  if (is.list(labels) && !is.null(names(labels))) {
+    parts <- lapply(names(labels), function(lbl) {
+      data.frame(
+        id = as.character(labels[[lbl]]),
+        label = lbl,
+        stringsAsFactors = FALSE
+      )
+    })
+    out <- do.call(rbind, parts)
+    return(as_labels_df(out))
+  }
+
+  stop(
+    "`labels` must be one of: data.frame(id,label), CSV path, ",
+    "named character vector (names=id), or named list(label -> ids)."
+  )
 }

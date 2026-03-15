@@ -1,60 +1,68 @@
-#' Score prototype margin for a Parquet embeddings dataset
+#' Pairwise cosine distances between reference and corpus label partitions
 #'
-#' Streams an embeddings Parquet dataset in batches, computes the cosine-sim
-#' margin of distance to positive minus negative prototypes, and writes Parquet
-#' outputs mirroring the embeddings layout: `model_id=<...>/batch=<n>/
-#' prototype-margin-*.parquet` with columns `id` and `distance`.
+#' Reads embeddings from a model-specific dataset and computes pairwise cosine
+#' distances between all vectors in `reference_label` and all vectors in
+#' `corpus_label`.
 #'
-#' @param project_dir Project root directory.
-#'   Must contain a folder `embeddings` containing the embeddings.
-#'   Outputs are written under
-#'   `project_dir/distance_prototype/model_id=<...>/batch=<n>/` with columns
-#'   `id` and `distance`.
-#' @param embeddings_dir Subfolder under `project_dir/embeddings` that contains
-#'   the embeddings dataset.
-#' @param included Name of a csv file containing a column named `id` containing the `id` values that define the positive prototype.
-#' @param excluded Name of a csv file containing a column named `id` containing the `id` values that define the negative prototype.
-#' @param workers Number of parallel workers to use. Passed to
-#'   `future::plan()` as `workers`.
-#' @param future_plan Future plan to use. Defaults to `"multisession"`.
+#' Embeddings are expected under:
+#' `project_dir/embeddings/model_id=<...>/label=<label>/batch=<n>/...`
 #'
-#' @return Invisibly the model-specific output directory under
-#'   `project_dir/distance_prototype/model_id=<...>/`.
+#' Output is a wide Parquet table with one row per reference id and one column
+#' per corpus id.
 #'
-#' @examples
-#' \dontrun{
-#' scores <- distance_prototype(
-#'   embeddings = "project/embeddings/",
-#'   included = "included.csv",
-#'   excluded = "excluded.csv",
-#'   project_dir = "project/"
-#' )
-#' }
+#' @param project_dir Project root directory containing `embeddings/`.
+#' @param embeddings_dir Model subfolder under `project_dir/embeddings`, e.g.
+#'   `"model_id=BAAI_bge-small-en-v1.5"`.
+#' @param corpus_label Label partition used as corpus side. Defaults to
+#'   `"corpus"`.
+#' @param reference_label Label partition used as reference side. Defaults to
+#'   `"reference"`.
+#' @param batch_size Unused placeholder for compatibility with planned streaming
+#'   extension.
+#' @param max_cells Maximum allowed matrix size (`n_reference * n_corpus`) to
+#'   guard memory use.
+#' @param verbose Logical; print progress messages.
 #'
-#' @importFrom dplyr filter select collect bind_rows all_of
-#' @importFrom arrow open_dataset Scanner write_parquet
-#' @importFrom cli cli_alert_success
-#' @importFrom future.apply future_lapply
-#' @importFrom future plan
-#' @importFrom progressr with_progress progressor
-#'
+#' @return Invisibly the output directory
+#'   `project_dir/distance_prototype/model_id=<...>/corpus_label=<...>/reference_label=<...>/`.
 #' @export
 distance_prototype <- function(
   project_dir,
   embeddings_dir = "model_id=BAAI_bge-small-en-v1.5",
-  included,
-  excluded,
-  workers = 2,
-  future_plan = "multisession",
+  corpus_label = "corpus",
+  reference_label = "reference",
+  batch_size = 100000,
+  max_cells = 5e7,
   verbose = TRUE
 ) {
+  if (!is.character(corpus_label) || length(corpus_label) != 1 || !nzchar(trimws(corpus_label))) {
+    stop("`corpus_label` must be a non-empty character string.")
+  }
+  if (!is.character(reference_label) || length(reference_label) != 1 || !nzchar(trimws(reference_label))) {
+    stop("`reference_label` must be a non-empty character string.")
+  }
+  if (!is.numeric(max_cells) || length(max_cells) != 1 || !is.finite(max_cells) || max_cells <= 0) {
+    stop("`max_cells` must be a positive number.")
+  }
+
   embeddings_path <- normalizePath(
     file.path(project_dir, "embeddings", embeddings_dir),
     mustWork = TRUE
   )
 
+  corpus_label <- trimws(corpus_label)
+  reference_label <- trimws(reference_label)
+  corpus_label_part <- gsub("/", "_", corpus_label, fixed = TRUE)
+  reference_label_part <- gsub("/", "_", reference_label, fixed = TRUE)
+
   out_model_dir <- normalizePath(
-    file.path(project_dir, "distance_prototype", embeddings_dir),
+    file.path(
+      project_dir,
+      "distance_prototype",
+      embeddings_dir,
+      paste0("corpus_label=", corpus_label_part),
+      paste0("reference_label=", reference_label_part)
+    ),
     mustWork = FALSE
   )
 
@@ -68,7 +76,10 @@ distance_prototype <- function(
     factory_options = list(exclude_invalid_files = TRUE)
   )
 
-  # Identify embedding columns (V1..Vd)
+  if (!("label" %in% names(ds))) {
+    stop("Embeddings dataset has no `label` partition. Re-embed with `embed_corpus(label = ...)`.")
+  }
+
   vcols <- names(ds)
   vcols <- vcols[grepl("^V[0-9]+$", vcols)]
   if (!length(vcols)) {
@@ -77,151 +88,77 @@ distance_prototype <- function(
   vcols <- vcols[order(as.integer(sub("^V", "", vcols)))]
 
   if (verbose) {
-    message("Calculating and L2-normalizing prototype vectors...")
+    message("Loading reference and corpus label partitions...")
   }
 
-  # Compute column means lazily in Arrow and collect only the single-row summary
-  pos <- centroid_prototype(
-    project_dir = project_dir,
-    embeddings_dir = embeddings_dir,
-    selected = included
-  )
-
-  neg <- centroid_prototype(
-    project_dir = project_dir,
-    embeddings_dir = embeddings_dir,
-    selected = excluded
-  )
-
-  # L2-normalize the prototype vectors for cosine similarity
-  pos_u <- pos / sqrt(sum(pos^2) + 1e-12)
-  neg_u <- neg / sqrt(sum(neg^2) + 1e-12)
-
-  # Stream all rows to score margins
-  cols <- c("id", vcols)
-  if ("batch" %in% names(ds)) {
-    cols <- c(cols, "batch")
-  }
-
-  batches <- list.dirs(
-    embeddings_path,
-    recursive = FALSE
-  )
-
-  # Create matching model_id directory under output and copy metadata
-  `%||%` <- function(x, y) if (is.null(x)) y else x
-
-  start_time <- Sys.time()
-
-  future::plan(future_plan, workers = workers)
-
-  if (verbose) {
-    message("Streaming individual batches to calculate distance...")
-  }
-
-  progressr::with_progress({
-    p <- progressr::progressor(along = batches)
-
-    future.apply::future_lapply(
-      seq_along(batches),
-      function(i) {
-        batch_path <- batches[[i]]
-        batch <- arrow::open_dataset(batch_path) |>
-          dplyr::collect()
-
-        X <- as.matrix(batch[, vcols, drop = FALSE])
-        Xn <- X / sqrt(rowSums(X^2) + 1e-12)
-        m <- as.numeric(Xn %*% pos_u) - as.numeric(Xn %*% neg_u)
-
-        batch_dir <- file.path(
-          out_model_dir,
-          basename(batch_path)
-        )
-
-        if (!dir.exists(batch_dir)) {
-          dir.create(batch_dir, recursive = TRUE, showWarnings = FALSE)
-        }
-
-        batch |>
-          dplyr::select(
-            id
-          ) |>
-          dplyr::mutate(
-            distance = m
-          ) |>
-          arrow::write_parquet(
-            file.path(batch_dir, sprintf("prototype-margin-%05d.parquet", i))
-          )
-
-        p()
-      }
-    )
-  })
-
-  elapsed <- Sys.time() - start_time
-
-  cli::cli_alert_success(sprintf(
-    "Done! Processed %d chunks in %d batches in %s.",
-    nrow(ds),
-    length(batches),
-    format(elapsed, digits = 2)
-  ))
-
-  invisible(out_model_dir)
-}
-
-# Internal helper: compute centroid for a selected id set.
-centroid_prototype <- function(
-  project_dir,
-  embeddings_dir = "model_id=BAAI_bge-small-en-v1.5",
-  selected = "included.csv",
-  verbose = TRUE
-) {
-  embeddings <- normalizePath(
-    file.path(project_dir, "embeddings", embeddings_dir),
-    mustWork = TRUE
-  )
-
-  selected <- read.csv(file.path(project_dir, selected))$id
-  stopifnot(length(selected) > 0)
-
-  ds <- arrow::open_dataset(
-    embeddings,
-    factory_options = list(exclude_invalid_files = TRUE)
-  )
-  vcols <- names(ds)
-  vcols <- vcols[grepl("^V[0-9]+$", vcols)]
-  if (!length(vcols)) {
-    stop("No embedding columns (V1..Vd) found in dataset.")
-  }
-  vcols <- vcols[order(as.integer(sub("^V", "", vcols)))]
-
-  sel_ids <- ds |>
-    dplyr::select(id) |>
-    dplyr::filter(id %in% selected) |>
-    dplyr::distinct() |>
+  ref_df <- ds |>
+    dplyr::filter(label == reference_label) |>
+    dplyr::select(dplyr::all_of(c("id", vcols))) |>
     dplyr::collect()
 
-  if (nrow(sel_ids) == 0) {
-    stop("None of the `selected` ids were found in embeddings dataset.")
+  corpus_df <- ds |>
+    dplyr::filter(label == corpus_label) |>
+    dplyr::select(dplyr::all_of(c("id", vcols))) |>
+    dplyr::collect()
+
+  if (!nrow(ref_df)) {
+    stop("No embeddings found for `reference_label = ", reference_label, "`.")
+  }
+  if (!nrow(corpus_df)) {
+    stop("No embeddings found for `corpus_label = ", corpus_label, "`.")
   }
 
-  miss_sel <- setdiff(selected, sel_ids$id)
-  if (length(miss_sel)) {
-    warning(
-      "Some selected ids not found: ",
-      paste(head(miss_sel, 10), collapse = ", "),
-      if (length(miss_sel) > 10) " …"
+  if (anyDuplicated(ref_df$id)) {
+    stop("Duplicate ids found in reference label partition.")
+  }
+  if (anyDuplicated(corpus_df$id)) {
+    stop("Duplicate ids found in corpus label partition.")
+  }
+
+  n_ref <- nrow(ref_df)
+  n_corpus <- nrow(corpus_df)
+  n_cells <- as.double(n_ref) * as.double(n_corpus)
+  if (n_cells > max_cells) {
+    stop(
+      "Pairwise distance matrix would contain ",
+      format(n_cells, scientific = FALSE, trim = TRUE),
+      " cells (", n_ref, " x ", n_corpus, "), exceeding `max_cells = ",
+      format(max_cells, scientific = FALSE, trim = TRUE),
+      "`. Reduce label sizes or increase `max_cells`."
     )
   }
 
   if (verbose) {
-    message("Calculating prototype centroid...")
+    message("Computing pairwise cosine distances for ", n_ref, " reference x ", n_corpus, " corpus vectors...")
   }
 
-  ds |>
-    dplyr::filter(id %in% selected) |>
-    dplyr::collect() |>
-    dplyr::select(dplyr::all_of(vcols)) |>
-    colMeans()
+  R <- as.matrix(ref_df[, vcols, drop = FALSE])
+  C <- as.matrix(corpus_df[, vcols, drop = FALSE])
+
+  Rn <- R / sqrt(rowSums(R^2) + 1e-12)
+  Cn <- C / sqrt(rowSums(C^2) + 1e-12)
+
+  S <- Rn %*% t(Cn)
+  D <- 1 - S
+
+  out <- as.data.frame(D, stringsAsFactors = FALSE, check.names = FALSE)
+  colnames(out) <- as.character(corpus_df$id)
+  out <- cbind(
+    data.frame(reference_id = as.character(ref_df$id), stringsAsFactors = FALSE, check.names = FALSE),
+    out
+  )
+
+  out_file <- file.path(out_model_dir, "pairwise-cosine.parquet")
+  arrow::write_parquet(out, out_file)
+
+  if (verbose) {
+    cli::cli_alert_success(sprintf(
+      "Done! Wrote pairwise cosine distance matrix (%d x %d) to %s.",
+      n_ref,
+      n_corpus,
+      out_file
+    ))
+  }
+
+  invisible(out_model_dir)
 }

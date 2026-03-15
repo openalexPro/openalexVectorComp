@@ -14,34 +14,49 @@ make_plot_embeddings_fixture <- function() {
   )
   arrow::write_dataset(emb, path = emb_dir, format = "parquet")
 
-  included_csv <- file.path(td, "included.csv")
-  excluded_csv <- file.path(td, "excluded.csv")
-  utils::write.csv(data.frame(id = c("W1", "W2")), included_csv, row.names = FALSE)
-  utils::write.csv(data.frame(id = c("W10", "W11")), excluded_csv, row.names = FALSE)
+  labels_csv <- file.path(td, "labels.csv")
+  utils::write.csv(
+    data.frame(
+      id = c("W1", "W2", "W10", "W11"),
+      label = c("reference", "reference", "corpus", "corpus"),
+      stringsAsFactors = FALSE
+    ),
+    labels_csv,
+    row.names = FALSE
+  )
 
   list(
     emb_dir = emb_dir,
-    included_csv = included_csv,
-    excluded_csv = excluded_csv
+    labels_csv = labels_csv
   )
 }
 
-testthat::test_that("plot_embeddings_pca returns ggplot for vectors and csv ids", {
+testthat::test_that("plot_embeddings_pca returns ggplot for multiple labels formats", {
   fx <- make_plot_embeddings_fixture()
 
+  labels_vec <- c(
+    W1 = "reference",
+    W2 = "reference",
+    W10 = "corpus"
+  )
   p1 <- plot_embeddings_pca(
     embeddings = fx$emb_dir,
-    included = c("W1", "W2"),
-    excluded = c("W10")
+    labels = labels_vec
   )
   testthat::expect_s3_class(p1, "ggplot")
 
+  labels_lst <- list(reference = c("W1", "W2"), corpus = c("W10", "W11"))
   p2 <- plot_embeddings_pca(
     embeddings = fx$emb_dir,
-    included = fx$included_csv,
-    excluded = fx$excluded_csv
+    labels = labels_lst
   )
   testthat::expect_s3_class(p2, "ggplot")
+
+  p3 <- plot_embeddings_pca(
+    embeddings = fx$emb_dir,
+    labels = fx$labels_csv
+  )
+  testthat::expect_s3_class(p3, "ggplot")
 })
 
 testthat::test_that("plot_embeddings_umap returns ggplot and supports sampling", {
@@ -49,8 +64,7 @@ testthat::test_that("plot_embeddings_umap returns ggplot and supports sampling",
 
   p <- plot_embeddings_umap(
     embeddings = fx$emb_dir,
-    included = fx$included_csv,
-    excluded = fx$excluded_csv,
+    labels = fx$labels_csv,
     n_neighbors = 5,
     n_epochs = 10
   )
@@ -58,8 +72,7 @@ testthat::test_that("plot_embeddings_umap returns ggplot and supports sampling",
 
   p_sample <- plot_embeddings_umap(
     embeddings = fx$emb_dir,
-    included = c("W1"),
-    excluded = c("W2"),
+    labels = list(reference = c("W1"), corpus = c("W2")),
     n_neighbors = 5,
     n_epochs = 10,
     sample_n = 10,
@@ -76,10 +89,25 @@ testthat::test_that("plot embedding functions validate id csv schema and embeddi
   testthat::expect_error(
     plot_embeddings_pca(
       embeddings = fx$emb_dir,
-      included = bad_csv,
-      excluded = c("W2")
+      labels = bad_csv
     ),
-    "must have a column named 'id'"
+    "must contain columns 'id' and 'label'"
+  )
+
+  testthat::expect_error(
+    plot_embeddings_pca(
+      embeddings = fx$emb_dir,
+      labels = c("reference", "corpus")
+    ),
+    "`labels` must be one of"
+  )
+
+  testthat::expect_error(
+    plot_embeddings_pca(
+      embeddings = fx$emb_dir,
+      labels = data.frame(id = c("W1", "W1"), label = c("a", "b"))
+    ),
+    "duplicated ids"
   )
 
   nov_dir <- tempfile("ovc_plot_nov_")
@@ -93,8 +121,7 @@ testthat::test_that("plot embedding functions validate id csv schema and embeddi
   testthat::expect_error(
     plot_embeddings_pca(
       embeddings = nov_dir,
-      included = c("A"),
-      excluded = c("B")
+      labels = data.frame(id = c("A", "B"), label = c("x", "y"))
     ),
     "No embedding columns"
   )

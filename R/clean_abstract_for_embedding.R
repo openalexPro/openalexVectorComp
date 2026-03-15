@@ -114,7 +114,7 @@ clean_abstract_for_embedding <- function(
       t_n <- nchar(t_l, type = "chars")
       if (t_n > 0L && startsWith(a_l, t_l)) {
         rem <- substr(abs_clean[i], t_n + 1L, nchar(abs_clean[i], type = "chars"))
-        rem <- sub("^[\\s:;,.\\-–—]+", "", rem, perl = TRUE)
+        rem <- sub("^[\\s:;,.\\-]+", "", rem, perl = TRUE)
         abs_clean[i] <- normalize_text(rem)
       }
     }

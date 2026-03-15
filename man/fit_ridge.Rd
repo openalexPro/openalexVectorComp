@@ -2,48 +2,33 @@
 % Please edit documentation in R/distance_ridge.R
 \name{fit_ridge}
 \alias{fit_ridge}
-\title{Ridge logistic regression from embeddings parquet}
+\title{Fit a reference-area model from embeddings parquet}
 \usage{
-fit_ridge(embeddings, included, excluded, output, verbose = TRUE)
+fit_ridge(
+  embeddings,
+  reference_label = "reference",
+  output,
+  regularization = 1e-06,
+  verbose = TRUE
+)
 }
 \arguments{
 \item{embeddings}{Path to a Parquet dataset (file or directory opened by
-Arrow) with columns \code{id} and \code{V1..Vd} (embedding dimensions).}
+Arrow) with columns \code{id}, \code{label}, and \code{V1..Vd}.}
 
-\item{included}{Vector of \code{id} values to use as positive examples (label \code{1}).}
+\item{reference_label}{Label partition used to define the reference area.}
 
-\item{excluded}{Vector of \code{id} values to use as negative examples (label \code{0}).}
+\item{output}{Name of the \code{.rds} file to save the fit object.}
 
-\item{output}{Name of the \code{.rds} file into which to save the result.}
+\item{regularization}{Positive numeric diagonal regularization added to
+covariance.}
 
-\item{verbose}{Logical; print basic progress (not used at the moment).}
+\item{verbose}{Logical; print progress messages.}
 }
 \value{
-A \code{cv.glmnet} fit object.
+Invisibly returns \code{output}.
 }
 \description{
-Fits a cross-validated ridge-penalised logistic regression (\code{alpha = 0})
-using embeddings stored in a Parquet dataset. Positives are given by
-\code{included} ids (label \code{1}) and negatives by \code{excluded} ids (label \code{0}).
-}
-\details{
-The function locates embedding columns \code{V1..Vd}, collects the rows for
-\code{included} and \code{excluded} ids from the dataset, constructs a response vector
-(\code{1} for included, \code{0} for excluded), and runs \code{glmnet::cv.glmnet()} with
-\code{family = "binomial"} and ridge penalty (\code{alpha = 0}).
-}
-\examples{
-\dontrun{
-fit <- fit_ridge(
-  embeddings = "path/to/embeddings_dataset/",
-  included   = c("work1", "work2"),  # positives (y = 1)
-  excluded   = c("work3", "work4"),  # negatives (y = 0)
-  verbose    = TRUE
-)
-fit$lambda.min
-}
-
-}
-\seealso{
-\code{\link[=distance_ridge]{distance_ridge()}}
+Fits a reference-area model (centroid + regularized covariance inverse)
+using rows from \code{reference_label}.
 }

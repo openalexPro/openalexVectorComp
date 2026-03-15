@@ -48,28 +48,21 @@ testthat::test_that("HF pipeline covers corpus embed, distance scoring, and cali
   )
   arrow::write_dataset(corpus, path = corpus_dir, format = "parquet")
 
-  included_rel <- "included.csv"
-  excluded_rel <- "excluded.csv"
-  included_abs <- file.path(project_dir, included_rel)
-  excluded_abs <- file.path(project_dir, excluded_rel)
-
-  utils::write.csv(
-    data.frame(id = c("W1", "W2", "W3", "W4"), stringsAsFactors = FALSE),
-    included_abs,
-    row.names = FALSE
-  )
-  utils::write.csv(
-    data.frame(id = c("W5", "W6", "W7", "W8"), stringsAsFactors = FALSE),
-    excluded_abs,
-    row.names = FALSE
-  )
-
   backend <- ovc_hf_backend(max_batch_size = 4L)
   model_dir <- embed_corpus(
     project_dir = project_dir,
     backend = backend,
     batch_size = 3,
     delete_existing = TRUE,
+    label = "corpus",
+    verbose = FALSE
+  )
+  embed_corpus(
+    project_dir = project_dir,
+    backend = backend,
+    batch_size = 3,
+    delete_existing = FALSE,
+    label = "reference",
     verbose = FALSE
   )
   testthat::expect_true(dir.exists(model_dir))
@@ -81,28 +74,26 @@ testthat::test_that("HF pipeline covers corpus embed, distance scoring, and cali
   emb_ids <- emb_ds |>
     dplyr::select(id) |>
     dplyr::collect()
-  testthat::expect_equal(sort(emb_ids$id), sort(corpus$id))
+  testthat::expect_equal(sort(unique(emb_ids$id)), sort(corpus$id))
 
   out_proto <- distance_prototype(
     project_dir = project_dir,
     embeddings_dir = basename(model_dir),
-    included = included_rel,
-    excluded = excluded_rel,
-    workers = 1,
-    future_plan = "sequential",
+    corpus_label = "corpus",
+    reference_label = "reference",
     verbose = FALSE
   )
   testthat::expect_true(dir.exists(out_proto))
-  proto_ds <- arrow::open_dataset(
-    out_proto,
-    factory_options = list(exclude_invalid_files = TRUE)
-  )
-  testthat::expect_true("distance" %in% names(proto_ds))
+  proto_file <- file.path(out_proto, "pairwise-cosine.parquet")
+  testthat::expect_true(file.exists(proto_file))
+  proto <- arrow::read_parquet(proto_file)
+  testthat::expect_true("reference_id" %in% names(proto))
+  testthat::expect_equal(nrow(proto), nrow(corpus))
 
   out_ridge <- distance_ridge(
     project_dir = project_dir,
-    included = included_abs,
-    excluded = excluded_abs,
+    reference_label = "reference",
+    corpus_label = "corpus",
     batch_size = 3,
     verbose = FALSE
   )
@@ -112,12 +103,21 @@ testthat::test_that("HF pipeline covers corpus embed, distance scoring, and cali
     factory_options = list(exclude_invalid_files = TRUE)
   )
   testthat::expect_true("relevance_score" %in% names(ridge_ds))
+  testthat::expect_true("area_distance" %in% names(ridge_ds))
+
+  labels_dir <- file.path(project_dir, "labels_parquet")
+  dir.create(labels_dir, recursive = TRUE, showWarnings = FALSE)
+  labels_df <- data.frame(
+    id = c("W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8"),
+    label = c(1L, 1L, 1L, 1L, 0L, 0L, 0L, 0L),
+    stringsAsFactors = FALSE
+  )
+  arrow::write_dataset(labels_df, path = labels_dir, format = "parquet")
 
   best <- calibrate_threshold(
     scores_parquet = out_ridge,
     score_col = "relevance_score",
-    included = included_abs,
-    excluded = excluded_abs,
+    labels_parquet = labels_dir,
     n_thresholds = 25,
     batch_size = 20,
     verbose = FALSE
