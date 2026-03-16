@@ -1,9 +1,36 @@
+ovc_set_hf_token_from_keyring <- function() {
+  token <- trimws(Sys.getenv("OVC_API_TOKEN", unset = ""))
+  if (!nzchar(token)) {
+    try(
+      Sys.setenv(OVC_API_TOKEN = keyring::key_get("API_huggingface")),
+      silent = TRUE
+    )
+    token <- trimws(Sys.getenv("OVC_API_TOKEN", unset = ""))
+  }
+  if (!nzchar(token)) {
+    token <- trimws(Sys.getenv("API_huggingface", unset = ""))
+  }
+  if (!nzchar(token)) {
+    token <- trimws(Sys.getenv("HF_TOKEN", unset = ""))
+  }
+  if (nzchar(token)) {
+    Sys.setenv(OVC_API_TOKEN = token)
+  }
+  invisible(token)
+}
+
+ovc_enable_demo_render_test <- function() {
+  token <- ovc_set_hf_token_from_keyring()
+  if (nzchar(token)) {
+    Sys.setenv(OVC_RUN_DEMO_RENDER_TEST = "true")
+    return(TRUE)
+  }
+  Sys.setenv(OVC_RUN_DEMO_RENDER_TEST = "false")
+  FALSE
+}
+
 ovc_skip_if_no_hf <- function() {
-  try(
-    Sys.setenv(OVC_API_TOKEN = keyring::key_get("API_huggingface")),
-    silent = TRUE
-  )
-  token <- Sys.getenv("OVC_API_TOKEN", unset = "")
+  token <- ovc_set_hf_token_from_keyring()
   testthat::skip_if(
     !nzchar(token),
     "`OVC_API_TOKEN` is required for HF integration tests."

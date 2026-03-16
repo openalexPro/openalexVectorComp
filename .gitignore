@@ -13,3 +13,6 @@ inst/openalex_embedding_pipeline_v4.md
 inst/abstract_cleaning_for_embeddings.md
 /doc/
 /Meta/
+
+demo/
+demo/*

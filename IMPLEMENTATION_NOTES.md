@@ -20,7 +20,7 @@ for `openalexVectorComp` (not only backend refactors).
 
 - Corrected mismatches between function signatures and docs, including:
   - `calibrate_threshold()` argument behavior/docs.
-  - `distance_prototype()` output column naming/docs.
+  - `distance_reference_cosine()` output column naming/docs.
   - `distance_ridge()` stale parameter docs.
   - embedding orchestration behavior/docs.
 - Regenerated roxygen2 docs (`man/`, `NAMESPACE`) using source loading.
@@ -70,7 +70,7 @@ for `openalexVectorComp` (not only backend refactors).
 - Exports:
   - backend core functions added to `NAMESPACE`.
   - `prototype_centroid()` removed from public API; internal helper moved into
-    `R/distance_prototype.R` as `centroid_prototype()`.
+    `R/distance_reference_cosine.R` as `centroid_prototype()`.
 - Documentation:
   - maintained via roxygen2 and regenerated `man/` + `NAMESPACE`.
   - added detailed Quarto vignette:
@@ -106,7 +106,7 @@ for `openalexVectorComp` (not only backend refactors).
   - covers:
     - `embed_texts()`
     - `embed_corpus()`
-    - `distance_prototype()`
+    - `distance_reference_cosine()`
     - `distance_ridge()`
     - `calibrate_threshold()`
 
@@ -142,7 +142,7 @@ for `openalexVectorComp` (not only backend refactors).
   `tests/testthat/test-distance-functions.R` for:
   - `similarity_cosine()` and `distance_cosine()` (vector and matrix inputs)
   - `fit_ridge()` model persistence and class checks
-  - `distance_prototype()` output validity and positive-vs-negative separation
+  - `distance_reference_cosine()` output validity and positive-vs-negative separation
   - `distance_ridge()` score range checks (`[0, 1]`) and separation checks
   - internal `distances()` helper join behavior on overlapping `id` keys
 - Tests use a synthetic local Parquet embeddings dataset and do not require API
@@ -353,13 +353,12 @@ remains a single place to review implementation decisions and rationale.
   - `dry_run_cleaning_model_id=<model>_label=<label>.parquet`
 - `embed_model.yaml` now stores `embedding_label` for traceability.
 
-- `distance_prototype()` was redesigned from `included/excluded` centroid margin
-  to label-based pairwise cosine distances:
+- `distance_reference_cosine()` was redesigned from `included/excluded` centroid margin
+  to label-based cosine distance computation:
   - inputs: `corpus_label`, `reference_label`
   - computes pairwise matrix between all `reference` and `corpus` vectors
-  - writes wide parquet with `reference_id` rows and one column per corpus id
   - output path:
-    - `distance_prototype/model_id=<...>/corpus_label=<...>/reference_label=<...>/pairwise-cosine.parquet`
+    - `distance_reference_cosine/model_id=<...>/corpus_label=<...>/reference_label=<...>/pairwise-cosine.parquet`
   - includes `max_cells` guard for memory safety.
 
 ### 22) Ridge refactor to reference-area scoring
@@ -376,15 +375,19 @@ remains a single place to review implementation decisions and rationale.
 
 - `distance_ridge()` now:
   - fits (or loads) reference-area model
-  - scores only `corpus_label` vectors
-  - computes squared Mahalanobis distance `area_distance`
-  - converts to `relevance_score = exp(-0.5 * area_distance)`
+  - computes squared Mahalanobis distance `area_distance` for
+    `corpus_label` vectors
   - writes parquet with columns:
     - `id`
-    - `relevance_score`
     - `area_distance`
   - output path:
-    - `distance_ridge/model_id=<...>/corpus_label=<...>/batch=<n>/ridge-area-*.parquet`
+    - `distance_ridge/model_id=<...>/corpus_label=<...>/reference_label=<...>/batch=<n>/ridge-area-*.parquet`
+
+- Added `score_ridge()`:
+  - reads `distance_ridge()` output
+  - computes `relevance_score = exp(-alpha * area_distance)` (default
+    `alpha = 0.5`)
+  - writes scored parquet under `score_ridge/...`.
 
 - Metadata copy for distance outputs now includes ridge-mode context fields:
   - `ridge_mode: reference_area`
@@ -398,3 +401,58 @@ remains a single place to review implementation decisions and rationale.
   when `labels_parquet` is not provided.
 - This enables labels-only calibration for the new ridge workflow.
 
+### 24) `distance_reference_cosine()` distance-only matrix with centroid axis
+
+- `distance_reference_cosine()` was further simplified to be distance-only and
+  single-file:
+  - removed selectable `output` mode argument.
+  - removed separate `centroid-cosine.parquet` output.
+- Current output is always:
+  - `pairwise-cosine.parquet` under
+    `distance_reference_cosine/model_id=<...>/corpus_label=<...>/reference_label=<...>/`.
+- Output schema now encodes both pairwise and centroid distances in one wide
+  matrix:
+  - first column: `id` (corpus ids + one `"centroid"` row for corpus centroid),
+  - remaining columns: reference ids + one `"centroid"` column for reference
+    centroid.
+- Cell semantics:
+  - regular cells: `dist(corpus_i, reference_j)`,
+  - centroid column: `dist(corpus_i, reference_centroid)`,
+  - centroid row: `dist(corpus_centroid, reference_j)`,
+  - centroid corner: `dist(corpus_centroid, reference_centroid)`.
+
+### 25) `score_reference_cosine()` for full-matrix cosine scoring
+
+- Added exported `score_reference_cosine()` to transform the full output matrix
+  from `distance_reference_cosine()`.
+- Supports scoring methods:
+  - `linear` (default): `score = 1 - distance`
+  - `exponential`: `score = exp(-alpha * distance)`
+- Preserves matrix shape (`id` + all value columns) and writes scored output
+  under `score_reference_cosine/...`.
+- Implementation simplified to lazy Arrow/dplyr selection + single
+  materialization/write (no synthetic batch partition output).
+
+### 26) User-facing demo project runner + Quarto template
+
+- Added exported `run_demo_openalex_quarto()`:
+  - default demo location: `file.path(getwd(), "demo_project")`
+  - creates and preserves:
+    - `demo_backend.yaml` in `demo_dir/`
+    - `openalex_demo_analysis.qmd` in `demo_dir/`
+    - `project/corpus/` in `demo_dir/`
+    - `project/reference_corpus/` in `demo_dir/`
+  - optional `render = TRUE` runs `quarto render` inside `demo_dir`.
+- Added install-time demo fixtures in `inst/ovc_demo/`:
+  - `project/corpus/corpus_small.parquet` (<= 100 rows, `id/title/abstract`)
+  - `project/reference_corpus/reference_small.parquet` (<= 10 rows, `id/title/abstract`)
+- Added Quarto analysis template in `inst/ovc_demo/openalex_demo_analysis.qmd`
+  covering:
+  - `embed_corpus(label = "corpus")`
+  - `embed_corpus(label = "reference")` via temporary corpus swap
+  - `distance_reference_cosine()`
+  - `score_reference_cosine()`
+  - `distance_ridge()`
+  - `score_ridge()`
+- Added tests in `tests/testthat/test-demo-runner.R` for setup, overwrite
+  handling, fixture/schema caps, template call coverage, and optional render.

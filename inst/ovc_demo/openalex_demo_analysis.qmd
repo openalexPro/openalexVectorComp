@@ -1,0 +1,275 @@
+---
+title: "openalexVectorComp Demo Analysis"
+format:
+  html:
+    toc: true
+    df-print: paged
+    theme: flatly
+    include-in-header:
+      text: |
+        <style>
+        body {
+          background: #f4f7fb;
+        }
+        .quarto-title-block .quarto-title-banner {
+          background: #1f2a44;
+          color: #ffffff;
+        }
+        .cell-output pre, pre, code {
+          white-space: pre-wrap;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
+        .cell-output pre {
+          background: #eef2ff;
+          border: 1px solid #d9e0ff;
+          border-radius: 6px;
+          padding: 0.75rem;
+        }
+        </style>
+execute:
+  echo: true
+  warning: true
+  message: true
+---
+
+This demo runs a complete reference-vs-corpus workflow from the current
+project directory. It is designed to be inspectable, so each step writes files
+to disk and keeps them for review.
+
+## Setup
+
+In setup we load the package, read backend configuration, and verify that both
+`corpus/` and `reference_corpus/` are present. This ensures later steps fail
+early with clear causes if inputs are missing.
+
+```{r setup-environment}
+library(openalexVectorComp)
+
+demo_dir <- getwd()
+backend <- embedding_backend_read(file.path(demo_dir, "demo_backend.yaml"))
+project_dir <- file.path(demo_dir, "project")
+
+corpus_dir <- file.path(project_dir, "corpus")
+reference_dir <- file.path(project_dir, "reference_corpus")
+
+stopifnot(dir.exists(corpus_dir))
+stopifnot(dir.exists(reference_dir))
+
+embed_reference_with_swap <- function(project_dir, backend, dry_run = FALSE) {
+  corpus_dir <- file.path(project_dir, "corpus")
+  reference_dir <- file.path(project_dir, "reference_corpus")
+  corpus_backup <- file.path(project_dir, "_demo_corpus_backup")
+
+  if (dir.exists(corpus_backup)) {
+    unlink(corpus_backup, recursive = TRUE)
+  }
+
+  ok <- file.rename(corpus_dir, corpus_backup)
+  if (!isTRUE(ok)) {
+    stop("Could not move corpus directory to temporary backup.")
+  }
+  on.exit({
+    if (dir.exists(corpus_dir)) unlink(corpus_dir, recursive = TRUE)
+    if (dir.exists(corpus_backup)) file.rename(corpus_backup, corpus_dir)
+  }, add = TRUE)
+
+  dir.create(corpus_dir, recursive = TRUE, showWarnings = FALSE)
+  ref_entries <- list.files(reference_dir, full.names = TRUE, no.. = TRUE)
+  ok <- if (length(ref_entries)) {
+    file.copy(ref_entries, corpus_dir, recursive = TRUE)
+  } else {
+    logical(0)
+  }
+  if (length(ref_entries) && !all(ok)) {
+    stop("Could not copy reference_corpus into temporary corpus directory.")
+  }
+
+  embed_corpus(
+    project_dir = project_dir,
+    backend = backend,
+    label = "reference",
+    dry_run = dry_run,
+    delete_existing = FALSE,
+    verbose = TRUE
+  )
+}
+```
+
+## Dry Run: Text Preparation
+
+This optional dry run executes text preparation and hashing without requesting
+embeddings. It writes preview Parquet files so you can inspect what would be
+submitted.
+
+```{r dry-run-embedding-preparation}
+embed_corpus(
+  project_dir = project_dir,
+  backend = backend,
+  label = "corpus",
+  dry_run = TRUE,
+  delete_existing = FALSE,
+  verbose = TRUE
+)
+
+embed_reference_with_swap(
+  project_dir = project_dir,
+  backend = backend,
+  dry_run = TRUE
+)
+
+info <- embedding_backend_info(backend)
+model_part <- gsub("/", "_", info$model_id, fixed = TRUE)
+dry_run_corpus <- file.path(
+  project_dir,
+  paste0("dry_run_cleaning_model_id=", model_part, "_label=corpus.parquet")
+)
+dry_run_reference <- file.path(
+  project_dir,
+  paste0("dry_run_cleaning_model_id=", model_part, "_label=reference.parquet")
+)
+
+dry_run_corpus_df <- arrow::read_parquet(dry_run_corpus)
+dry_run_reference_df <- arrow::read_parquet(dry_run_reference)
+
+dry_run_corpus_df
+dry_run_reference_df
+```
+
+## Embed Corpus Label
+
+This step embeds the main corpus and stores vectors under label `corpus`.
+`model_id_dir` is captured so downstream distance functions read exactly the
+same embedding model partition.
+
+```{r embed-corpus-label}
+model_dir <- embed_corpus(
+  project_dir = project_dir,
+  backend = backend,
+  label = "corpus",
+  delete_existing = FALSE,
+  verbose = TRUE
+)
+model_id_dir <- basename(model_dir)
+```
+
+## Embed Reference Label
+
+This step embeds the reference papers under label `reference`. Because
+`embed_corpus()` always reads from `project_dir/corpus`, we temporarily replace
+`corpus/` with `reference_corpus/` for this step, then restore it.
+
+```{r embed-reference-label}
+embed_reference_with_swap(project_dir = project_dir, backend = backend)
+
+```
+
+## Reference-Cosine Distances
+
+`distance_reference_cosine()` computes cosine distances between all corpus and
+reference vectors, and adds centroid axes. This creates a full distance matrix
+for transparent inspection.
+
+```{r compute-reference-cosine-distance}
+distance_dir <- distance_reference_cosine(
+  project_dir = project_dir,
+  embeddings_dir = model_id_dir,
+  corpus_label = "corpus",
+  reference_label = "reference",
+  verbose = TRUE
+)
+
+distance_file <- file.path(distance_dir, "pairwise-cosine.parquet")
+distance_matrix <- arrow::read_parquet(distance_file)
+distance_matrix_preview <- distance_matrix[, 1:min(12, ncol(distance_matrix)), drop = FALSE]
+distance_matrix_preview
+```
+
+## Reference-Cosine Scores
+
+Scoring converts distances into a more interpretable ranking signal.
+With `method = "linear"`, score = `1 - distance` for every matrix cell.
+
+```{r score-reference-cosine-distance}
+score_reference_dir <- score_reference_cosine(
+  distance_parquet = distance_file,
+  method = "linear",
+  verbose = TRUE
+)
+
+score_reference_ds <- arrow::open_dataset(
+  score_reference_dir,
+  factory_options = list(exclude_invalid_files = TRUE)
+)
+score_reference_preview <- score_reference_ds |>
+  dplyr::collect()
+score_reference_preview <- score_reference_preview[, 1:min(12, ncol(score_reference_preview)), drop = FALSE]
+score_reference_preview
+```
+
+## Ridge Area Distances and Scores
+
+`distance_ridge()` models the reference label as an embedding area
+(center + covariance) and calculates distance of each corpus item to that area.
+`score_ridge()` then maps area distance to `relevance_score`.
+
+```{r compute-and-score-ridge-distance}
+distance_ridge_dir <- distance_ridge(
+  project_dir = project_dir,
+  reference_label = "reference",
+  corpus_label = "corpus",
+  verbose = TRUE
+)
+
+score_ridge_dir <- score_ridge(
+  distance_parquet = distance_ridge_dir,
+  verbose = TRUE
+)
+
+ridge_scores <- arrow::open_dataset(
+  score_ridge_dir,
+  factory_options = list(exclude_invalid_files = TRUE)
+) |>
+  dplyr::collect()
+
+ridge_scores
+```
+
+## Output Structure
+
+The final listing helps verify the output layout and where each artifact was
+written (`embeddings`, `distance_reference_cosine`, `score_reference_cosine`,
+`distance_ridge`, `score_ridge`).
+
+```{r list-demo-output-files}
+print_tree <- function(path, prefix = "") {
+  entries <- list.files(path, all.files = FALSE, full.names = TRUE, no.. = TRUE)
+  entries <- entries[order(tolower(basename(entries)))]
+  if (!length(entries)) {
+    return(invisible(NULL))
+  }
+
+  for (i in seq_along(entries)) {
+    entry <- entries[[i]]
+    is_last <- i == length(entries)
+    branch <- if (is_last) "└── " else "├── "
+    cat(
+      prefix,
+      branch,
+      basename(entry),
+      if (dir.exists(entry)) "/" else "",
+      "\n",
+      sep = ""
+    )
+
+    if (dir.exists(entry)) {
+      next_prefix <- paste0(prefix, if (is_last) "    " else "│   ")
+      print_tree(entry, next_prefix)
+    }
+  }
+  invisible(NULL)
+}
+
+cat(basename(project_dir), "/\n", sep = "")
+print_tree(project_dir)
+```

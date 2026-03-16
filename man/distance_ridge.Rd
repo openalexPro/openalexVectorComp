@@ -2,7 +2,7 @@
 % Please edit documentation in R/distance_ridge.R
 \name{distance_ridge}
 \alias{distance_ridge}
-\title{Score corpus embeddings by distance to a reference embedding area}
+\title{Compute corpus distance to a reference embedding area}
 \usage{
 distance_ridge(
   project_dir,
@@ -34,11 +34,9 @@ inversion.}
 }
 \value{
 Invisibly the model output directory under
-\verb{project_dir/distance_ridge/model_id=<...>/corpus_label=<...>/}.
+\verb{project_dir/distance_ridge/model_id=<...>/corpus_label=<...>/reference_label=<...>/}.
 }
 \description{
 Fits (or loads) a reference-area model from \code{reference_label} embeddings and
-scores only rows in \code{corpus_label} using squared Mahalanobis distance.
-Distances are converted to relevance via
-\code{relevance_score = exp(-0.5 * area_distance)}.
+computes squared Mahalanobis distance for rows in \code{corpus_label}.
 }

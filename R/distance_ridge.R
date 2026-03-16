@@ -1,9 +1,7 @@
-#' Score corpus embeddings by distance to a reference embedding area
+#' Compute corpus distance to a reference embedding area
 #'
 #' Fits (or loads) a reference-area model from `reference_label` embeddings and
-#' scores only rows in `corpus_label` using squared Mahalanobis distance.
-#' Distances are converted to relevance via
-#' `relevance_score = exp(-0.5 * area_distance)`.
+#' computes squared Mahalanobis distance for rows in `corpus_label`.
 #'
 #' @param project_dir Project root containing `embeddings/`.
 #' @param reference_label Label partition used to fit the reference area.
@@ -17,7 +15,7 @@
 #' @param verbose Logical; print progress messages.
 #'
 #' @return Invisibly the model output directory under
-#'   `project_dir/distance_ridge/model_id=<...>/corpus_label=<...>/`.
+#'   `project_dir/distance_ridge/model_id=<...>/corpus_label=<...>/reference_label=<...>/`.
 #' @export
 distance_ridge <- function(
   project_dir,
@@ -103,10 +101,12 @@ distance_ridge <- function(
   }
 
   corpus_label_part <- gsub("/", "_", corpus_label, fixed = TRUE)
+  reference_label_part <- gsub("/", "_", reference_label, fixed = TRUE)
   out_model_dir <- file.path(
     task_root,
     model_part,
-    paste0("corpus_label=", corpus_label_part)
+    paste0("corpus_label=", corpus_label_part),
+    paste0("reference_label=", reference_label_part)
   )
   if (dir.exists(out_model_dir)) {
     unlink(out_model_dir, recursive = TRUE)
@@ -154,7 +154,7 @@ distance_ridge <- function(
   }
 
   if (verbose) {
-    message("Scoring corpus label '", corpus_label, "'...")
+    message("Computing area distances for corpus label '", corpus_label, "'...")
   }
 
   cols <- c("id", "label", vcols)
@@ -195,11 +195,9 @@ distance_ridge <- function(
     }
 
     area_distance <- .reference_area_md2(X, fit$mu, fit$Sigma_inv)
-    relevance_score <- exp(-0.5 * area_distance)
 
     out_df <- data.frame(
       id = df$id,
-      relevance_score = relevance_score,
       area_distance = area_distance,
       check.names = FALSE
     )
@@ -219,7 +217,7 @@ distance_ridge <- function(
 
   elapsed <- Sys.time() - start_time
   cli::cli_alert_success(sprintf(
-    "Done! Scored %d corpus rows in %d batches in %s.",
+    "Done! Computed area distances for %d corpus rows in %d batches in %s.",
     scored_rows,
     idx,
     format(elapsed, digits = 2)
@@ -227,7 +225,6 @@ distance_ridge <- function(
 
   invisible(out_model_dir)
 }
-
 
 #' Fit a reference-area model from embeddings parquet
 #'

@@ -89,7 +89,8 @@ Default implementation for title/abstract cleaning and canonical text creation.
 
 - `similarity_cosine()`
 - `distance_cosine()`
-- `distance_prototype()`
+- `distance_reference_cosine()`
+- `score_reference_cosine()`
 - `distances()` (internal helper surface used in the distance workflow)
 
 These functions quantify embedding-space relevance from geometric perspectives.
@@ -98,6 +99,7 @@ These functions quantify embedding-space relevance from geometric perspectives.
 
 - `fit_ridge()`
 - `distance_ridge()`
+- `score_ridge()`
 - `calibrate_threshold()`
 
 These functions produce calibrated decision-ready scores.
@@ -127,7 +129,7 @@ Typical workflow for one project:
 
 1. Configure backend (`embedding_backend_config()`).
 2. Embed corpus (`embed_corpus()`).
-3. Compute scoring signal (`distance_prototype()` and/or `distance_ridge()`).
+3. Compute distance signal (`distance_reference_cosine()` and/or `distance_ridge()`), then score (e.g. `score_reference_cosine()`, `score_ridge()`).
 4. Calibrate operating threshold (`calibrate_threshold()`).
 5. Validate with plots (`plot_embeddings_pca()` / `plot_embeddings_umap()`).
 
@@ -137,15 +139,19 @@ sequenceDiagram
   participant BC as backend_config
   participant EC as embed_corpus
   participant ES as embedding_store
-  participant DP as distance_prototype
+  participant DP as distance_reference_cosine
+  participant SCP as score_reference_cosine
   participant DR as distance_ridge
+  participant SR as score_ridge
   participant CT as calibrate_threshold
 
   U->>BC: embedding_backend_config(...)
   U->>EC: embed_corpus(project_dir, backend)
   EC->>ES: write embeddings parquet
-  U->>DP: distance_prototype(...)
+  U->>DP: distance_reference_cosine(...)
+  U->>SCP: score_reference_cosine(...)
   U->>DR: distance_ridge(...)
+  U->>SR: score_ridge(...)
   U->>CT: calibrate_threshold(...)
 ```
 
@@ -210,9 +216,9 @@ The package supports two complementary relevance styles:
 1. **Prototype distance**
    - pairwise cosine distances between reference and corpus label partitions.
 
-2. **Reference-area score (`distance_ridge`)**
-   - Mahalanobis-style distance to the reference label area, converted to
-     `relevance_score`.
+2. **Reference-area distance + score (`distance_ridge` + `score_ridge`)**
+   - Mahalanobis-style distance to the reference label area (`area_distance`)
+   - optional conversion to `relevance_score`.
 
 Use one or both, then calibrate threshold for target operating behavior.
 
@@ -255,11 +261,15 @@ embed_corpus(
   save_text = TRUE
 )
 
-pairwise_dir <- distance_prototype(
+pairwise_dir <- distance_reference_cosine(
   project_dir = "my_project",
   embeddings_dir = basename(model_dir),
   corpus_label = "corpus",
   reference_label = "reference"
+)
+pairwise_score_dir <- score_reference_cosine(
+  distance_parquet = pairwise_dir,
+  method = "linear"
 )
 
 # Optional supervised scoring path
@@ -268,6 +278,7 @@ scores_dir <- distance_ridge(
   reference_label = "reference",
   corpus_label = "corpus"
 )
+scores_dir <- score_ridge(scores_dir)
 
 best <- calibrate_threshold(
   scores_parquet = scores_dir,

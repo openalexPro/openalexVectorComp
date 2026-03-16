@@ -6,3 +6,4 @@
 ^inst/ASR$
 ^inst/examples$
 ^inst/qdrant\ functions*$
+^demo$

@@ -80,33 +80,54 @@ embed_corpus(
 )
 ```
 
-# Compute prototype margins
+# Compute prototype distances
 
 Prototype distances are computed pairwise between all vectors in a reference
 label partition and all vectors in a corpus label partition.
+`distance_reference_cosine()` writes one file `pairwise-cosine.parquet` with:
+
+- rows: corpus ids plus one `centroid` row (corpus centroid)
+- columns: reference ids plus one `centroid` column (reference centroid)
+- values: cosine distances only
 
 ```{r}
 #| label: prototype-margins
-distance_prototype(
+distance_reference_cosine(
   project_dir = "inst/examples",
   embeddings_dir = "model_id=BAAI_bge-small-en-v1.5",
   corpus_label = "corpus",
   reference_label = "reference"
 )
+
+# Optional: convert full cosine-distance matrix to scores
+score_reference_cosine(
+  distance_parquet = file.path(
+    "inst/examples",
+    "distance_reference_cosine",
+    "model_id=BAAI_bge-small-en-v1.5",
+    "corpus_label=corpus",
+    "reference_label=reference"
+  ),
+  method = "linear"
+)
 ```
 
-# Compute ridge distances
+# Compute ridge distances and scores
 
-Ridge distances now model the `reference` label as an embedding area
-(centroid + covariance) and score all `corpus` rows by Mahalanobis-style
-distance converted to `relevance_score`.
+`distance_ridge()` models the `reference` label as an embedding area
+(centroid + covariance) and computes Mahalanobis-style `area_distance` for all
+`corpus` rows. Use `score_ridge()` to convert distances to `relevance_score`.
 
 ```{r}
 #| label: ridge-distances
-distance_ridge(
+ridge_dist_dir <- distance_ridge(
   project_dir = "inst/examples/",
   reference_label = "reference",
   corpus_label = "corpus"
+)
+
+ridge_score_dir <- score_ridge(
+  distance_parquet = ridge_dist_dir
 )
 ```
 

@@ -76,7 +76,7 @@ testthat::test_that("HF pipeline covers corpus embed, distance scoring, and cali
     dplyr::collect()
   testthat::expect_equal(sort(unique(emb_ids$id)), sort(corpus$id))
 
-  out_proto <- distance_prototype(
+  out_proto <- distance_reference_cosine(
     project_dir = project_dir,
     embeddings_dir = basename(model_dir),
     corpus_label = "corpus",
@@ -86,9 +86,11 @@ testthat::test_that("HF pipeline covers corpus embed, distance scoring, and cali
   testthat::expect_true(dir.exists(out_proto))
   proto_file <- file.path(out_proto, "pairwise-cosine.parquet")
   testthat::expect_true(file.exists(proto_file))
+  testthat::expect_false(file.exists(file.path(out_proto, "centroid-cosine.parquet")))
   proto <- arrow::read_parquet(proto_file)
-  testthat::expect_true("reference_id" %in% names(proto))
-  testthat::expect_equal(nrow(proto), nrow(corpus))
+  testthat::expect_true("id" %in% names(proto))
+  testthat::expect_true("centroid" %in% names(proto))
+  testthat::expect_equal(nrow(proto), nrow(corpus) + 1L)
 
   out_ridge <- distance_ridge(
     project_dir = project_dir,
@@ -102,8 +104,18 @@ testthat::test_that("HF pipeline covers corpus embed, distance scoring, and cali
     out_ridge,
     factory_options = list(exclude_invalid_files = TRUE)
   )
-  testthat::expect_true("relevance_score" %in% names(ridge_ds))
   testthat::expect_true("area_distance" %in% names(ridge_ds))
+
+  out_score <- score_ridge(
+    distance_parquet = out_ridge,
+    verbose = FALSE
+  )
+  testthat::expect_true(dir.exists(out_score))
+  score_ds <- arrow::open_dataset(
+    out_score,
+    factory_options = list(exclude_invalid_files = TRUE)
+  )
+  testthat::expect_true("relevance_score" %in% names(score_ds))
 
   labels_dir <- file.path(project_dir, "labels_parquet")
   dir.create(labels_dir, recursive = TRUE, showWarnings = FALSE)
@@ -115,7 +127,7 @@ testthat::test_that("HF pipeline covers corpus embed, distance scoring, and cali
   arrow::write_dataset(labels_df, path = labels_dir, format = "parquet")
 
   best <- calibrate_threshold(
-    scores_parquet = out_ridge,
+    scores_parquet = out_score,
     score_col = "relevance_score",
     labels_parquet = labels_dir,
     n_thresholds = 25,
