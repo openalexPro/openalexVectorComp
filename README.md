@@ -47,6 +47,40 @@ Set `render = TRUE` to run `quarto render` directly. For hosted backends
 The Quarto file and backend YAML are placed in `demo_dir`, while all pipeline
 artifacts are written under `demo_dir/project/`.
 
+## OpenAI Batch Workflow (Async, Pure R)
+
+For long-running OpenAI embedding jobs, use the async batch helpers:
+
+```r
+backend <- embedding_backend_config(
+  provider = "openai",
+  model = "text-embedding-3-small"
+)
+
+# 1) submit and return immediately
+embed_corpus_submit_openai_batch(
+  project_dir = "my_project",
+  backend = backend,
+  label = "corpus"
+)
+
+# 2) check job status
+embed_corpus_status_openai_batch(
+  project_dir = "my_project",
+  label = "corpus"
+)
+
+# 3) collect completed jobs and write canonical embeddings parquet
+embed_corpus_collect_openai_batch(
+  project_dir = "my_project",
+  backend = backend,
+  label = "corpus"
+)
+```
+
+Preflight checks run before submission. Jobs are auto-split by size/count when
+needed. A single oversized request line stops with a clear error.
+
 ## Prototype distance output
 
 `distance_reference_cosine()` writes one parquet file:

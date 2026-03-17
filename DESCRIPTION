@@ -1,7 +1,7 @@
 Package: openalexVectorComp
 Type: Package
 Title: Auto-tagging via TEI Embeddings and Qdrant (Prototype-Margin + Ridge Logistic)
-Version: 0.1.1
+Version: 0.1.2
 Authors@R: c(
     person(given = "Rainer", family = "Krug", role = c("aut", "cre"), email = "you@example.org"),
     person(given = "ChatGPT", family = "Assistant", role = "ctb")
@@ -24,7 +24,8 @@ Imports:
     uwot,
     stats,
     utils,
-    ggplot2
+    ggplot2,
+    jsonlite
 Suggests:
     knitr,
     quarto,

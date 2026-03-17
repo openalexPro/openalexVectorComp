@@ -456,3 +456,22 @@ remains a single place to review implementation decisions and rationale.
   - `score_ridge()`
 - Added tests in `tests/testthat/test-demo-runner.R` for setup, overwrite
   handling, fixture/schema caps, template call coverage, and optional render.
+
+### 27) Pure-R OpenAI Batch orchestration (submit/status/collect)
+
+- Added asynchronous OpenAI Batch functions:
+  - `embed_corpus_submit_openai_batch()`
+  - `embed_corpus_status_openai_batch()`
+  - `embed_corpus_collect_openai_batch()`
+- Implemented in pure R (`httr2`) with no Python/CLI dependency.
+- Submission now performs preflight planning before remote API calls:
+  - hard caps enforced: `max_requests_per_job <= 50000`, `max_job_bytes <= 200MB`
+  - conservative defaults: `max_requests_per_job = 20000`, `max_job_bytes = 150MB`
+  - auto-splits jobs by count/bytes with warning
+  - single oversized request line fails early with clear id/bytes error.
+- Added local batch state and workspace:
+  - `openai_batch_state_label=<label>.json`
+  - `openai_batch/model_id=<...>/label=<...>/batch=<n>/requests.jsonl|manifest.parquet|output.jsonl`
+- Collected outputs are written to the canonical embeddings layout:
+  - `embeddings/model_id=<...>/label=<...>/batch=<n>/embeddings-*.parquet`
+  ensuring downstream compatibility with distance/score/plotting flows.
