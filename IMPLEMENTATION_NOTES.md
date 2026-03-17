@@ -349,8 +349,8 @@ remains a single place to review implementation decisions and rationale.
   - `embeddings/model_id=<...>/label=<label>/batch=<n>/embeddings-*.parquet`
 - `delete_existing = TRUE` now deletes only the selected `label` subtree.
 - Resume hash loading now reads only the selected `label` partition.
-- Dry-run preview filename now includes label:
-  - `dry_run_cleaning_model_id=<model>_label=<label>.parquet`
+- Dry-run preview filename is now model-independent and corpus-based:
+  - `<corpus_name>_dryrun.parquet`
 - `embed_model.yaml` now stores `embedding_label` for traceability.
 
 - `distance_reference_cosine()` was redesigned from `included/excluded` centroid margin

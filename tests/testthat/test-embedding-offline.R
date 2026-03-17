@@ -454,11 +454,7 @@ testthat::test_that("embed_corpus dry_run preprocesses but does not write embedd
 
   preview_file <- file.path(
     proj,
-    sprintf(
-      "dry_run_cleaning_model_id=%s_label=%s.parquet",
-      gsub("/", "_", backend$model, fixed = TRUE),
-      "corpus"
-    )
+    "corpus_dryrun.parquet"
   )
   testthat::expect_true(file.exists(preview_file))
   preview <- arrow::read_parquet(preview_file)

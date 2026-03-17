@@ -176,7 +176,7 @@ Embeddings are written under:
 
 When `dry_run = TRUE`, no embeddings are written. Instead:
 
-- `project_dir/dry_run_cleaning_model_id=<model>_label=<label>.parquet`
+- `project_dir/<corpus_name>_dryrun.parquet`
 
 This file supports auditing preprocessing behavior (including custom cleaners).
 
@@ -185,7 +185,7 @@ flowchart TB
   A[project_dir/corpus] --> B[embed_corpus]
   B --> C[model_id=.../embed_model.yaml]
   B --> D[model_id=.../label=.../batch=*/embeddings-*.parquet]
-  B --> E[dry_run_cleaning_model_id=..._label=...parquet]
+  B --> E[<corpus_name>_dryrun.parquet]
 ```
 
 # Text-Preparation Contract

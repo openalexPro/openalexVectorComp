@@ -7,22 +7,26 @@
 embed_corpus(
   project_dir = NULL,
   backend = embedding_backend_config(),
+  corpus_name = "corpus",
   batch_size = 5000,
   delete_existing = FALSE,
   text_preprocessor = clean_abstract_for_embedding,
   cleaner_args = list(),
   save_text = TRUE,
-  label = "corpus",
+  label = corpus_name,
   dry_run = FALSE,
   verbose = TRUE
 )
 }
 \arguments{
 \item{project_dir}{Project root directory. Must contain
-\code{project_dir/corpus} with columns \code{id}, \code{title}, \code{abstract}.}
+\verb{project_dir/<corpus_name>} with columns \code{id}, \code{title}, \code{abstract}.}
 
 \item{backend}{Backend configuration created with
 \code{\link[=embedding_backend_config]{embedding_backend_config()}}.}
+
+\item{corpus_name}{Folder name under \code{project_dir} containing the corpus
+parquet dataset. Defaults to \code{"corpus"}.}
 
 \item{batch_size}{Number of corpus rows per Arrow scan batch.}
 
@@ -43,12 +47,12 @@ is stored.}
 
 \item{label}{Partition label written under
 \verb{project_dir/embeddings/model_id=<...>/label=<label>/batch=<n>/}.
-Defaults to \code{"corpus"}.}
+Defaults to \code{corpus_name}.}
 
 \item{dry_run}{Logical; if \code{TRUE}, run preprocessing and unchanged-row
 filtering without requesting embeddings or writing output files. In this
 mode, a Parquet preview file is written to
-\verb{project_dir/dry_run_cleaning_model_id=<model>_label=<label>.parquet}.}
+\verb{project_dir/<corpus_name>_dryrun.parquet}.}
 
 \item{verbose}{Logical; print progress and summary messages.}
 }

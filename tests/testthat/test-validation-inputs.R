@@ -203,6 +203,10 @@ testthat::test_that("embed_corpus validates key inputs", {
     "`backend` must come from embedding_backend_config"
   )
   testthat::expect_error(
+    embed_corpus(project_dir = tempdir(), corpus_name = "", verbose = FALSE),
+    "`corpus_name` must be a non-empty character string."
+  )
+  testthat::expect_error(
     embed_corpus(project_dir = tempdir(), save_text = NA, verbose = FALSE),
     "`save_text` must be TRUE or FALSE."
   )
@@ -224,6 +228,38 @@ testthat::test_that("embed_corpus validates key inputs", {
     embed_corpus(project_dir = td, verbose = FALSE),
     "Dataset must contain columns: abstract"
   )
+
+  td2 <- tempfile("ovc_corpus_custom_")
+  dir.create(file.path(td2, "papers"), recursive = TRUE, showWarnings = FALSE)
+  ok <- data.frame(
+    id = c("W1", "W2"),
+    title = c("A", "B"),
+    abstract = c("Alpha", "Beta"),
+    stringsAsFactors = FALSE
+  )
+  arrow::write_dataset(ok, path = file.path(td2, "papers"), format = "parquet")
+
+  backend <- embedding_backend_config(provider = "hf", model = "BAAI/bge-small-en-v1.5")
+  model_dir <- testthat::with_mocked_bindings(
+    embed_corpus(
+      project_dir = td2,
+      corpus_name = "papers",
+      backend = backend,
+      batch_size = 10,
+      delete_existing = TRUE,
+      verbose = FALSE
+    ),
+    embed_texts = function(texts, backend) {
+      matrix(
+        rep(c(1, 2), times = length(texts)),
+        nrow = length(texts),
+        byrow = TRUE,
+        dimnames = list(NULL, c("V1", "V2"))
+      )
+    },
+    .package = "openalexVectorComp"
+  )
+  testthat::expect_true(dir.exists(file.path(model_dir, "label=papers")))
 })
 
 testthat::test_that("fit_ridge and distance_ridge fail cleanly on invalid embeddings", {

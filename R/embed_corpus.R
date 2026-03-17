@@ -5,9 +5,11 @@
 #' configured embedding backend, and writes Parquet batch files.
 #'
 #' @param project_dir Project root directory. Must contain
-#'   `project_dir/corpus` with columns `id`, `title`, `abstract`.
+#'   `project_dir/<corpus_name>` with columns `id`, `title`, `abstract`.
 #' @param backend Backend configuration created with
 #'   [embedding_backend_config()].
+#' @param corpus_name Folder name under `project_dir` containing the corpus
+#'   parquet dataset. Defaults to `"corpus"`.
 #' @param batch_size Number of corpus rows per Arrow scan batch.
 #' @param delete_existing If `TRUE`, old embeddings for the target model are
 #'   deleted before processing. If `FALSE`, unchanged rows are skipped using
@@ -22,11 +24,11 @@
 #'   is stored.
 #' @param label Partition label written under
 #'   `project_dir/embeddings/model_id=<...>/label=<label>/batch=<n>/`.
-#'   Defaults to `"corpus"`.
+#'   Defaults to `corpus_name`.
 #' @param dry_run Logical; if `TRUE`, run preprocessing and unchanged-row
 #'   filtering without requesting embeddings or writing output files. In this
 #'   mode, a Parquet preview file is written to
-#'   `project_dir/dry_run_cleaning_model_id=<model>_label=<label>.parquet`.
+#'   `project_dir/<corpus_name>_dryrun.parquet`.
 #' @param verbose Logical; print progress and summary messages.
 #'
 #' @return Invisibly the model-specific embeddings directory under
@@ -35,12 +37,13 @@
 embed_corpus <- function(
   project_dir = NULL,
   backend = embedding_backend_config(),
+  corpus_name = "corpus",
   batch_size = 5000,
   delete_existing = FALSE,
   text_preprocessor = clean_abstract_for_embedding,
   cleaner_args = list(),
   save_text = TRUE,
-  label = "corpus",
+  label = corpus_name,
   dry_run = FALSE,
   verbose = TRUE
 ) {
@@ -54,6 +57,9 @@ embed_corpus <- function(
   }
   if (!is.list(backend) || is.null(backend$provider)) {
     stop("`backend` must come from embedding_backend_config().")
+  }
+  if (!is.character(corpus_name) || length(corpus_name) != 1 || !nzchar(trimws(corpus_name))) {
+    stop("`corpus_name` must be a non-empty character string.")
   }
   if (!is.function(text_preprocessor)) {
     stop("`text_preprocessor` must be a function.")
@@ -71,9 +77,10 @@ embed_corpus <- function(
     stop("`dry_run` must be TRUE or FALSE.")
   }
   batch_size <- as.integer(batch_size)
+  corpus_name <- trimws(corpus_name)
   label <- trimws(label)
 
-  corpus <- normalizePath(file.path(project_dir, "corpus"), mustWork = TRUE)
+  corpus <- normalizePath(file.path(project_dir, corpus_name), mustWork = TRUE)
   ds <- arrow::open_dataset(corpus)
   req_cols <- c("id", "title", "abstract")
   missing <- setdiff(req_cols, names(ds))
@@ -258,11 +265,7 @@ embed_corpus <- function(
     list(cleaned_title = cleaned_title, cleaned_abstract = cleaned_abstract)
   }
 
-  dry_run_file <- file.path(project_dir, sprintf(
-    "dry_run_cleaning_model_id=%s_label=%s.parquet",
-    model_part,
-    label_part
-  ))
+  dry_run_file <- file.path(project_dir, paste0(corpus_name, "_dryrun.parquet"))
   dry_run_preview <- list()
   if (isTRUE(dry_run) && file.exists(dry_run_file)) {
     unlink(dry_run_file)
