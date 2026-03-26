@@ -30,7 +30,7 @@ cleaning rules, policies, and customization), see the vignette
 
 - A running TEI server endpoint, e.g. `http://localhost:3000/embed`.
 - Suggested R packages (for vignette rendering): `knitr`, `rmarkdown`, and `quarto`.
-- The example data located under `inst/examples/` in this package source.
+- Demo fixtures available under `inst/ovc_demo/project/` in this package source.
 
 ## Notes on execution
 
@@ -52,13 +52,16 @@ For detailed operational guidance (start/stop/health checks), see the vignette
 
 # Embed a small corpus
 
-The example corpus ships with the package sources under `inst/examples/corpus/`.
-We embed to `inst/examples/embedings/` (note: the folder name mirrors the example script).
+This example uses the demo fixture project under `inst/ovc_demo/project/`.
+The fixture already contains:
+
+- `corpus/corpus_small.parquet`
+- `reference_corpus/reference_small.parquet`
 
 ```{r}
 #| label: embed-corpus
 embed_corpus(
-  project_dir = "inst/examples",
+  project_dir = "inst/ovc_demo/project",
   backend = embedding_backend_config(
     provider = "tei",
     base_url = "http://localhost:3000"
@@ -69,11 +72,12 @@ embed_corpus(
 )
 
 embed_corpus(
-  project_dir = "inst/examples",
+  project_dir = "inst/ovc_demo/project",
   backend = embedding_backend_config(
     provider = "tei",
     base_url = "http://localhost:3000"
   ),
+  corpus_name = "reference_corpus",
   label = "reference",
   batch_size = 15,
   verbose = TRUE
@@ -93,7 +97,7 @@ label partition and all vectors in a corpus label partition.
 ```{r}
 #| label: prototype-margins
 distance_reference_cosine(
-  project_dir = "inst/examples",
+  project_dir = "inst/ovc_demo/project",
   embeddings_dir = "model_id=BAAI_bge-small-en-v1.5",
   corpus_label = "corpus",
   reference_label = "reference"
@@ -102,7 +106,7 @@ distance_reference_cosine(
 # Optional: convert full cosine-distance matrix to scores
 score_reference_cosine(
   distance_parquet = file.path(
-    "inst/examples",
+    "inst/ovc_demo/project",
     "distance_reference_cosine",
     "model_id=BAAI_bge-small-en-v1.5",
     "corpus_label=corpus",
@@ -121,7 +125,7 @@ score_reference_cosine(
 ```{r}
 #| label: ridge-distances
 ridge_dist_dir <- distance_ridge(
-  project_dir = "inst/examples/",
+  project_dir = "inst/ovc_demo/project",
   reference_label = "reference",
   corpus_label = "corpus"
 )

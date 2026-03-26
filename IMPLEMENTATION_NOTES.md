@@ -1,5 +1,26 @@
 # Implementation Notes (March 2026)
 
+## Release v0.1.3 (March 2026)
+
+- Documentation synchronized with current code and repository layout:
+  - `README.md` scoring description aligned to current implementation
+    (`distance_ridge()` + `score_ridge()` reference-area workflow).
+  - `vignettes/simplestart.qmd` paths updated from obsolete `inst/examples/*`
+    to existing `inst/ovc_demo/project/*` fixtures.
+  - `vignettes/package-overview.qmd` clarified `distances()` as non-exported
+    internal helper.
+  - OpenAI batch vignette and other technical vignettes spot-checked for API
+    naming consistency.
+- Package version bumped in `DESCRIPTION`:
+  - `Version: 0.1.2` -> `Version: 0.1.3`
+- Release commit scope includes current repository cleanup changes in this
+  branch, including removal of stale helper scripts under:
+  - `inst/qdrant functions/`
+- Release-check caveats:
+  - `R CMD check --no-manual --no-examples --no-tests .` may still emit
+    package-structure notes/warnings if local non-package artifacts are present
+    (for example temporary check directories).
+
 ## Scope
 
 This note tracks all implementation/documentation changes made in this workstream

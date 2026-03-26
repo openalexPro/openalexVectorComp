@@ -4,7 +4,8 @@
 
 - Embeddings served by **TEI** (Text Embeddings Inference; Hugging Face).
 - Vector search by **Qdrant**.
-- Scoring: **prototype-margin** + **ridge logistic** (glmnet) + simple calibration.
+- Scoring: **prototype cosine-distance** + **reference-area ridge score**
+  (`distance_ridge()` + `score_ridge()`) + threshold calibration.
 - Works great with DuckDB/Arrow pipelines.
 
 ## Install (local)
@@ -27,9 +28,13 @@ Or build & install from the zip you downloaded.
   - Binary: `./qdrant`
   - Docker: `docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant`
 
-## Vignette
+## Vignettes
 
-See `vignettes/simplestart.qmd` for a walkthrough.
+Start with `vignettes/simplestart.qmd`, then see:
+
+- `vignettes/package-overview.qmd`
+- `vignettes/openai-batch-async.qmd`
+- `vignettes/abstract-cleaning.qmd`
 
 ## Run a Local Demo Project
 

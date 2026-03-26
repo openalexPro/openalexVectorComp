@@ -60,7 +60,7 @@ flowchart LR
 
 # Function Groups
 
-The exported functions fall into six groups.
+The package API is organized into these groups.
 
 ## 1) Embedding backend abstraction
 
@@ -91,9 +91,12 @@ Default implementation for title/abstract cleaning and canonical text creation.
 - `distance_cosine()`
 - `distance_reference_cosine()`
 - `score_reference_cosine()`
-- `distances()` (internal helper surface used in the distance workflow)
 
 These functions quantify embedding-space relevance from geometric perspectives.
+
+Internal helper note:
+
+- `distances()` exists as a non-exported helper for joining distance datasets.
 
 ## 5) Supervised scoring and calibration
 
