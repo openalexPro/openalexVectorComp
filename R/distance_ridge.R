@@ -90,7 +90,7 @@ distance_ridge <- function(
       meta_path <- file.path(model_dir_emb, legacy_meta_name)
     }
     if (file.exists(meta_path)) {
-      meta <- try(embedding_backend_read(meta_path), silent = TRUE)
+      meta <- try(backend_read(meta_path), silent = TRUE)
       if (!inherits(meta, "try-error")) {
         mid <- meta$model %||% NULL
         if (!is.null(mid) && nzchar(mid)) {

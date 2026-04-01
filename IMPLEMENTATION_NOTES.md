@@ -16,7 +16,7 @@ In short:
 - `IMPLEMENTATION_NOTES.md` = "what was implemented and shipped".
 - `NEWS.md` = "user-facing release highlights".
 
-## Current Baseline (v0.2.0 branch state)
+## Current Baseline (v0.3.0 branch state)
 
 - Package focus is embedding/vectorization plus distance/scoring workflows.
 - Backends are provider-pluggable (`hf`, `openai`, `tei`) through a shared backend config/dispatch interface.
@@ -49,7 +49,7 @@ In short:
   - `project/openai_batch_comparison/label=<label>/`.
 - Improved tutorial narrative consistency across demos.
 
-### v0.2.0
+### v0.3.0
 
 - Consolidated OpenAI batch helper/module naming and structure.
 - Added/updated CI workflows for PR check suites with caching and manual trigger support.

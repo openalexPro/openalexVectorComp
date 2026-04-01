@@ -86,7 +86,7 @@ when setup is incomplete.
 ```{r setup-environment}
 library(openalexVectorComp)
 
-backend <- embedding_backend_read(file.path(".", "demo_backend.yaml"))
+backend <- backend_read(file.path(".", "demo_backend.yaml"))
 
 project_dir <- file.path(".", "project")
 corpus_dir <- file.path(project_dir, "corpus")
@@ -101,7 +101,7 @@ stopifnot(dir.exists(reference_dir))
 This table is your first checkpoint when results look unexpected.
 
 ```{r model-configuration-info}
-info <- embedding_backend_info(backend)
+info <- backend_info(backend)
 
 data.frame(
   field = c("provider", "model", "model_id", "base_url"),
@@ -245,24 +245,24 @@ command for later.
 
 The batch helpers have different roles:
 
-- `embed_corpus_submit_openai_batch()`: enqueue jobs and return quickly.
-- `embed_corpus_status_openai_batch()`: refresh/report remote job states.
-- `embed_corpus_collect_openai_batch()`: download completed outputs and write
+- `batch_submit_openai()`: enqueue jobs and return quickly.
+- `batch_status_openai()`: refresh/report remote job states.
+- `batch_collect_openai()`: download completed outputs and write
   local batch embedding parquet files.
 
-`finalize_demo_openai_batch()` combines status + collect + compare and returns
+`demo_finalize_openai_batch()` combines status + collect + compare and returns
 `comparison_ready = FALSE` instead of error when not ready yet.
 
 ::: {.callout-tip}
 After render, check and finalize OpenAI batch jobs with:
 ```r
-openalexVectorComp::embed_corpus_status_openai_batch(
+openalexVectorComp::batch_status_openai(
   project_dir = "./project",
   label = "corpus_batch",
   refresh_remote = TRUE
 )
 
-openalexVectorComp::finalize_demo_openai_batch(
+openalexVectorComp::demo_finalize_openai_batch(
   demo_dir = ".",
   api_key = keyring::key_get("API_openai_ipbes"),
   label = "corpus_batch"
@@ -278,7 +278,7 @@ if (!identical(provider_name, "openai")) {
 } else {
   batch_label <- "corpus_batch"
 
-  submit_info <- embed_corpus_submit_openai_batch(
+  submit_info <- batch_submit_openai(
     project_dir = project_dir,
     backend = backend,
     corpus_name = "corpus",
@@ -294,13 +294,13 @@ if (!identical(provider_name, "openai")) {
   collect_info <- NULL
 
   for (i in seq_len(max_polls)) {
-    status_df <- embed_corpus_status_openai_batch(
+    status_df <- batch_status_openai(
       project_dir = project_dir,
       label = batch_label,
       refresh_remote = TRUE
     )
 
-    collect_info <- embed_corpus_collect_openai_batch(
+    collect_info <- batch_collect_openai(
       project_dir = project_dir,
       backend = backend,
       label = batch_label,
@@ -320,7 +320,7 @@ if (!identical(provider_name, "openai")) {
   status_df
   collect_info
 
-  finalize_out <- finalize_demo_openai_batch(
+  finalize_out <- demo_finalize_openai_batch(
     demo_dir = ".",
     label = batch_label,
     refresh_remote = TRUE,
@@ -330,7 +330,7 @@ if (!identical(provider_name, "openai")) {
   if (!isTRUE(finalize_out$comparison_ready)) {
     message(finalize_out$message)
     message(
-      "Run later: openalexVectorComp::finalize_demo_openai_batch(\"",
+      "Run later: openalexVectorComp::demo_finalize_openai_batch(\"",
       normalizePath(getwd(), mustWork = FALSE),
       "\", api_key = keyring::key_get(\"API_openai_ipbes\"))"
     )

@@ -4,14 +4,14 @@
 \alias{embed_texts}
 \title{Embed texts through a configured backend}
 \usage{
-embed_texts(texts, backend = embedding_backend_config())
+embed_texts(texts, backend = backend_config())
 }
 \arguments{
 \item{texts}{Character vector of texts to embed. Empty inputs return a
 0-row matrix; missing values are not supported.}
 
 \item{backend}{Backend configuration created with
-\code{\link[=embedding_backend_config]{embedding_backend_config()}}.}
+\code{\link[=backend_config]{backend_config()}}.}
 }
 \value{
 A numeric matrix with one row per input text and one column per

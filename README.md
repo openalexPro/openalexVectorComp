@@ -4,7 +4,7 @@
 
 ## Version
 
-Current development version: **0.2.0**.
+Current development version: **0.3.0**.
 
 - Embeddings served by **TEI** (Text Embeddings Inference; Hugging Face).
 - Embeddings via a **backend-neutral interface** (`hf`, `openai`, `tei`).
@@ -12,7 +12,7 @@ Current development version: **0.2.0**.
   (`distance_ridge()` + `score_ridge()`) + threshold calibration.
 - Works great with DuckDB/Arrow pipelines.
 
-## 0.2.0 Highlights
+## 0.3.0 Highlights
 
 - Demo defaults now use a shared structure:
   - `demos/openalex`
@@ -61,7 +61,7 @@ Start with `vignettes/simplestart.qmd`, then see:
 Create a full demo in `getwd()/demos/openalex` (fixtures + Quarto analysis):
 
 ```r
-run_demo_openalex_quarto(
+run_demo_openalex(
   demo_dir = file.path(getwd(), "demos", "openalex"),
   render = FALSE
 )
@@ -75,7 +75,7 @@ artifacts are written under `demo_dir/project/`.
 OpenAI-specific demo (same structure, explicit API key argument):
 
 ```r
-run_demo_openai_quarto(
+run_demo_openai(
   api_key = Sys.getenv("OVC_API_TOKEN"),
   demo_dir = file.path(getwd(), "demos", "openai"),
   render = FALSE
@@ -83,11 +83,11 @@ run_demo_openai_quarto(
 ```
 
 The OpenAI demo now follows a two-phase async flow:
-1. `run_demo_openai_quarto(..., render = TRUE)` submits batch and continues.
+1. `run_demo_openai(..., render = TRUE)` submits batch and continues.
 2. If batch is still pending, finalize later:
 
 ```r
-finalize_demo_openai_batch(
+demo_finalize_openai_batch(
   demo_dir = file.path(getwd(), "demos", "openai"),
   api_key = Sys.getenv("OVC_API_TOKEN"),
   label = "corpus_batch"
@@ -102,26 +102,26 @@ This writes comparison outputs to:
 For long-running OpenAI embedding jobs, use the async batch helpers:
 
 ```r
-backend <- embedding_backend_config(
+backend <- backend_config(
   provider = "openai",
   model = "text-embedding-3-small"
 )
 
 # 1) submit and return immediately
-embed_corpus_submit_openai_batch(
+batch_submit_openai(
   project_dir = "my_project",
   backend = backend,
   label = "corpus"
 )
 
 # 2) check job status
-embed_corpus_status_openai_batch(
+batch_status_openai(
   project_dir = "my_project",
   label = "corpus"
 )
 
 # 3) collect completed jobs and write canonical embeddings parquet
-embed_corpus_collect_openai_batch(
+batch_collect_openai(
   project_dir = "my_project",
   backend = backend,
   label = "corpus"

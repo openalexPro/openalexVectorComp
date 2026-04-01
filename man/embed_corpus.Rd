@@ -6,7 +6,7 @@
 \usage{
 embed_corpus(
   project_dir = NULL,
-  backend = embedding_backend_config(),
+  backend = backend_config(),
   corpus_name = "corpus",
   batch_size = 5000,
   delete_existing = FALSE,
@@ -23,7 +23,7 @@ embed_corpus(
 \verb{project_dir/<corpus_name>} with columns \code{id}, \code{title}, \code{abstract}.}
 
 \item{backend}{Backend configuration created with
-\code{\link[=embedding_backend_config]{embedding_backend_config()}}.}
+\code{\link[=backend_config]{backend_config()}}.}
 
 \item{corpus_name}{Folder name under \code{project_dir} containing the corpus
 parquet dataset. Defaults to \code{"corpus"}.}

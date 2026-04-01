@@ -1,16 +1,16 @@
 #' Collect completed OpenAI batch embedding jobs
 #'
 #' @param project_dir Project root directory.
-#' @param backend Backend configuration from [embedding_backend_config()]. Must
+#' @param backend Backend configuration from [backend_config()]. Must
 #'   use `provider = "openai"`.
 #' @param label Embedding label partition to collect into.
 #' @param verbose Logical; print progress messages.
 #'
 #' @return Invisibly returns a list with collection summary.
 #' @export
-embed_corpus_collect_openai_batch <- function(
+batch_collect_openai <- function(
   project_dir,
-  backend = embedding_backend_config(provider = "openai"),
+  backend = backend_config(provider = "openai"),
   label = "corpus",
   verbose = TRUE
 ) {

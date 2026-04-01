@@ -63,7 +63,7 @@ curl -s -X POST http://localhost:3000/embed \
 ```{r}
 library(openalexVectorComp)
 
-backend <- embedding_backend_config(
+backend <- backend_config(
   provider = "tei",
   base_url = "http://localhost:3000"
 )
@@ -108,7 +108,7 @@ Use another port and update backend config accordingly.
 ## Empty/invalid responses
 
 - Check `curl` smoke test directly against `/embed`.
-- Reduce `max_batch_size` in `embedding_backend_config()`.
+- Reduce `max_batch_size` in `backend_config()`.
 
 ## Slow throughput
 

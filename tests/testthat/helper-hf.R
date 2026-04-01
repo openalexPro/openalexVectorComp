@@ -65,7 +65,7 @@ ovc_skip_if_no_hf <- function() {
 }
 
 ovc_hf_backend <- function(max_batch_size = 8L) {
-  embedding_backend_config(
+  backend_config(
     provider = "hf",
     model = "BAAI/bge-small-en-v1.5",
     max_batch_size = as.integer(max_batch_size),

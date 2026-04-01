@@ -29,8 +29,8 @@ make_distance_test_project <- function() {
     partitioning = c("label", "batch")
   )
 
-  openalexVectorComp::embedding_backend_save(
-    backend = openalexVectorComp::embedding_backend_config(
+  openalexVectorComp::backend_save(
+    backend = openalexVectorComp::backend_config(
       provider = "hf",
       model = "BAAI/bge-small-en-v1.5"
     ),

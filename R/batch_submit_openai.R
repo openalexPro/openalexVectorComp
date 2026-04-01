@@ -4,7 +4,7 @@
 #' into compliant OpenAI batch jobs, submits them, and returns immediately.
 #'
 #' @param project_dir Project root directory.
-#' @param backend Backend configuration from [embedding_backend_config()]. Must
+#' @param backend Backend configuration from [backend_config()]. Must
 #'   use `provider = "openai"`.
 #' @param corpus_name Folder name under `project_dir` containing the corpus
 #'   dataset. Defaults to `"corpus"`.
@@ -27,9 +27,9 @@
 #'
 #' @return Invisibly returns a list with state path and submission summary.
 #' @export
-embed_corpus_submit_openai_batch <- function(
+batch_submit_openai <- function(
   project_dir,
-  backend = embedding_backend_config(provider = "openai"),
+  backend = backend_config(provider = "openai"),
   corpus_name = "corpus",
   label = corpus_name,
   batch_size = 5000,
@@ -62,7 +62,7 @@ embed_corpus_submit_openai_batch <- function(
   max_requests_per_job <- as.integer(max_requests_per_job)
   max_job_bytes <- as.numeric(max_job_bytes)
 
-  info <- embedding_backend_info(backend)
+  info <- backend_info(backend)
   model_id <- .ovc_or(info$model_id, backend$model)
   model_part <- gsub("/", "_", model_id, fixed = TRUE)
   label_part <- gsub("/", "_", label, fixed = TRUE)
@@ -92,7 +92,7 @@ embed_corpus_submit_openai_batch <- function(
   backend_meta$model <- model_id
   backend_meta$max_batch_size <- .ovc_or(info$max_batch_size, backend$max_batch_size)
   meta_path <- file.path(model_dir, "embed_model.yaml")
-  embedding_backend_save(backend = backend_meta, fn = meta_path)
+  backend_save(backend = backend_meta, fn = meta_path)
   meta <- yaml::read_yaml(meta_path)
   meta$embedding_label <- label
   meta$submission_mode <- "openai_batch"

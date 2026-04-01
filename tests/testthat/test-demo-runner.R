@@ -4,12 +4,12 @@ resolve_inst_file <- function(rel) {
   file.path("inst", rel)
 }
 
-testthat::test_that("run_demo_openalex_quarto prepares demo project with fixtures and template", {
+testthat::test_that("run_demo_openalex prepares demo project with fixtures and template", {
   td <- tempfile("ovc_demo_")
   dir.create(td, recursive = TRUE, showWarnings = FALSE)
   proj <- file.path(td, "demo_project")
 
-  out <- run_demo_openalex_quarto(
+  out <- run_demo_openalex(
     demo_dir = proj,
     render = FALSE,
     backend = ovc_hf_backend(max_batch_size = 4L),
@@ -41,20 +41,20 @@ testthat::test_that("run_demo_openalex_quarto prepares demo project with fixture
   testthat::expect_match(qmd_text, "score_reference_cosine\\(")
   testthat::expect_match(qmd_text, "distance_ridge\\(")
   testthat::expect_match(qmd_text, "score_ridge\\(")
-  testthat::expect_match(qmd_text, "finalize_demo_openai_batch\\(")
-  testthat::expect_match(qmd_text, "Run later: openalexVectorComp::finalize_demo_openai_batch")
+  testthat::expect_match(qmd_text, "demo_finalize_openai_batch\\(")
+  testthat::expect_match(qmd_text, "Run later: openalexVectorComp::demo_finalize_openai_batch")
 
   testthat::expect_identical(normalizePath(out$demo_dir), normalizePath(proj))
   testthat::expect_identical(normalizePath(out$project_dir), normalizePath(file.path(proj, "project")))
   testthat::expect_false(out$rendered)
 })
 
-testthat::test_that("run_demo_openalex_quarto enforces overwrite policy", {
+testthat::test_that("run_demo_openalex enforces overwrite policy", {
   td <- tempfile("ovc_demo_overwrite_")
   dir.create(td, recursive = TRUE, showWarnings = FALSE)
   proj <- file.path(td, "demo_project")
 
-  run_demo_openalex_quarto(
+  run_demo_openalex(
     demo_dir = proj,
     render = FALSE,
     backend = ovc_hf_backend(max_batch_size = 4L),
@@ -63,7 +63,7 @@ testthat::test_that("run_demo_openalex_quarto enforces overwrite policy", {
   )
 
   testthat::expect_error(
-    run_demo_openalex_quarto(
+    run_demo_openalex(
       demo_dir = proj,
       render = FALSE,
       backend = ovc_hf_backend(max_batch_size = 4L),
@@ -74,7 +74,7 @@ testthat::test_that("run_demo_openalex_quarto enforces overwrite policy", {
   )
 
   testthat::expect_no_error(
-    run_demo_openalex_quarto(
+    run_demo_openalex(
       demo_dir = proj,
       render = FALSE,
       backend = ovc_hf_backend(max_batch_size = 4L),
@@ -118,7 +118,7 @@ testthat::test_that("optional demo render works when quarto and token are availa
   dir.create(td, recursive = TRUE, showWarnings = FALSE)
   proj <- file.path(td, "demo_project")
 
-  out <- run_demo_openalex_quarto(
+  out <- run_demo_openalex(
     demo_dir = proj,
     render = TRUE,
     backend = ovc_hf_backend(max_batch_size = 4L),
@@ -132,13 +132,13 @@ testthat::test_that("optional demo render works when quarto and token are availa
   testthat::expect_true(file.exists(file.path(proj, "openalex_demo_analysis.html")))
 })
 
-testthat::test_that("run_demo_openai_quarto requires api_key and configures OpenAI backend", {
+testthat::test_that("run_demo_openai requires api_key and configures OpenAI backend", {
   td <- tempfile("ovc_demo_openai_")
   dir.create(td, recursive = TRUE, showWarnings = FALSE)
   proj <- file.path(td, "demo_project_openai")
 
   testthat::expect_error(
-    run_demo_openai_quarto(
+    run_demo_openai(
       api_key = "",
       demo_dir = proj,
       render = FALSE,
@@ -147,7 +147,7 @@ testthat::test_that("run_demo_openai_quarto requires api_key and configures Open
     "api_key"
   )
 
-  out <- run_demo_openai_quarto(
+  out <- run_demo_openai(
     api_key = "test-key",
     demo_dir = proj,
     render = FALSE,
@@ -160,7 +160,7 @@ testthat::test_that("run_demo_openai_quarto requires api_key and configures Open
   testthat::expect_true(file.exists(file.path(proj, "openai_demo_analysis.qmd")))
   testthat::expect_true(file.exists(file.path(proj, "demo_backend.yaml")))
 
-  backend <- openalexVectorComp::embedding_backend_read(
+  backend <- openalexVectorComp::backend_read(
     file.path(proj, "demo_backend.yaml")
   )
   testthat::expect_identical(tolower(as.character(backend$provider)), "openai")

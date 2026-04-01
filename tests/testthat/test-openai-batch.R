@@ -14,7 +14,7 @@ make_openai_batch_project <- function(n = 6) {
 }
 
 fake_openai_backend <- function() {
-  openalexVectorComp::embedding_backend_config(
+  openalexVectorComp::backend_config(
     provider = "openai",
     base_url = "https://api.openai.com/v1",
     model = "text-embedding-3-small",
@@ -30,7 +30,7 @@ testthat::test_that("submit splits jobs by request count", {
   uploaded_lines <- integer()
 
   out <- testthat::with_mocked_bindings(
-    openalexVectorComp::embed_corpus_submit_openai_batch(
+    openalexVectorComp::batch_submit_openai(
       project_dir = proj,
       backend = backend,
       max_requests_per_job = 2,
@@ -74,7 +74,7 @@ testthat::test_that("submit splits jobs by byte size", {
 
   uploads <- 0L
   out <- testthat::with_mocked_bindings(
-    openalexVectorComp::embed_corpus_submit_openai_batch(
+    openalexVectorComp::batch_submit_openai(
       project_dir = proj,
       backend = backend,
       max_requests_per_job = 50000,
@@ -109,7 +109,7 @@ testthat::test_that("single oversized request line errors before submission", {
   uploads <- 0L
   testthat::expect_error(
     testthat::with_mocked_bindings(
-      openalexVectorComp::embed_corpus_submit_openai_batch(
+      openalexVectorComp::batch_submit_openai(
         project_dir = proj,
         backend = backend,
         max_job_bytes = 500,
@@ -134,7 +134,7 @@ testthat::test_that("limit validation rejects invalid caps", {
   backend <- fake_openai_backend()
 
   testthat::expect_error(
-    openalexVectorComp::embed_corpus_submit_openai_batch(
+    openalexVectorComp::batch_submit_openai(
       project_dir = proj,
       backend = backend,
       max_requests_per_job = 50001,
@@ -143,7 +143,7 @@ testthat::test_that("limit validation rejects invalid caps", {
     "<= 50000"
   )
   testthat::expect_error(
-    openalexVectorComp::embed_corpus_submit_openai_batch(
+    openalexVectorComp::batch_submit_openai(
       project_dir = proj,
       backend = backend,
       max_job_bytes = 210 * 1024^2,
@@ -158,7 +158,7 @@ testthat::test_that("collect ingests completed jobs and is idempotent", {
   backend <- fake_openai_backend()
 
   submit <- testthat::with_mocked_bindings(
-    openalexVectorComp::embed_corpus_submit_openai_batch(
+    openalexVectorComp::batch_submit_openai(
       project_dir = proj,
       backend = backend,
       max_requests_per_job = 50000,
@@ -191,7 +191,7 @@ testthat::test_that("collect ingests completed jobs and is idempotent", {
 
   downloaded <- 0L
   out1 <- testthat::with_mocked_bindings(
-    openalexVectorComp::embed_corpus_collect_openai_batch(
+    openalexVectorComp::batch_collect_openai(
       project_dir = proj,
       backend = backend,
       label = "corpus",
@@ -216,7 +216,7 @@ testthat::test_that("collect ingests completed jobs and is idempotent", {
   testthat::expect_length(files, 1L)
 
   out2 <- testthat::with_mocked_bindings(
-    openalexVectorComp::embed_corpus_collect_openai_batch(
+    openalexVectorComp::batch_collect_openai(
       project_dir = proj,
       backend = backend,
       label = "corpus",

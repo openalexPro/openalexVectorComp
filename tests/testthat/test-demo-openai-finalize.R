@@ -3,8 +3,8 @@ make_demo_openai_workspace <- function() {
   dir.create(td, recursive = TRUE, showWarnings = FALSE)
   proj <- file.path(td, "demo_project_openai")
   dir.create(file.path(proj, "project"), recursive = TRUE, showWarnings = FALSE)
-  openalexVectorComp::embedding_backend_save(
-    openalexVectorComp::embedding_backend_config(
+  openalexVectorComp::backend_save(
+    openalexVectorComp::backend_config(
       provider = "openai",
       model = "text-embedding-3-small"
     ),
@@ -20,10 +20,10 @@ write_demo_label_embeddings <- function(project_dir, label, df) {
   arrow::write_parquet(df, file.path(label_dir, "embeddings-00001.parquet"))
 }
 
-testthat::test_that("finalize_demo_openai_batch returns pending without state", {
+testthat::test_that("demo_finalize_openai_batch returns pending without state", {
   demo_dir <- make_demo_openai_workspace()
 
-  out <- openalexVectorComp::finalize_demo_openai_batch(
+  out <- openalexVectorComp::demo_finalize_openai_batch(
     demo_dir = demo_dir,
     label = "corpus_batch",
     refresh_remote = TRUE,
@@ -34,13 +34,13 @@ testthat::test_that("finalize_demo_openai_batch returns pending without state", 
   testthat::expect_match(out$message, "No batch submission state found")
 })
 
-testthat::test_that("finalize_demo_openai_batch errors for non-openai backend yaml", {
+testthat::test_that("demo_finalize_openai_batch errors for non-openai backend yaml", {
   td <- tempfile("ovc_demo_finalize_hf_")
   dir.create(td, recursive = TRUE, showWarnings = FALSE)
   demo_dir <- file.path(td, "demo_project_hf")
   dir.create(file.path(demo_dir, "project"), recursive = TRUE, showWarnings = FALSE)
-  openalexVectorComp::embedding_backend_save(
-    openalexVectorComp::embedding_backend_config(
+  openalexVectorComp::backend_save(
+    openalexVectorComp::backend_config(
       provider = "hf",
       model = "BAAI/bge-small-en-v1.5"
     ),
@@ -48,12 +48,12 @@ testthat::test_that("finalize_demo_openai_batch errors for non-openai backend ya
   )
 
   testthat::expect_error(
-    openalexVectorComp::finalize_demo_openai_batch(demo_dir = demo_dir, verbose = FALSE),
+    openalexVectorComp::demo_finalize_openai_batch(demo_dir = demo_dir, verbose = FALSE),
     "provider = 'openai'"
   )
 })
 
-testthat::test_that("finalize_demo_openai_batch writes comparison outputs when batch embeddings are present", {
+testthat::test_that("demo_finalize_openai_batch writes comparison outputs when batch embeddings are present", {
   demo_dir <- make_demo_openai_workspace()
   project_dir <- file.path(demo_dir, "project")
 
@@ -97,16 +97,16 @@ testthat::test_that("finalize_demo_openai_batch writes comparison outputs when b
   )
 
   out <- testthat::with_mocked_bindings(
-    openalexVectorComp::finalize_demo_openai_batch(
+    openalexVectorComp::demo_finalize_openai_batch(
       demo_dir = demo_dir,
       label = "corpus_batch",
       refresh_remote = TRUE,
       verbose = FALSE
     ),
-    embed_corpus_status_openai_batch = function(project_dir, label, refresh_remote) {
+    batch_status_openai = function(project_dir, label, refresh_remote) {
       data.frame(batch_index = integer(), job_id = character(), status = character(), stringsAsFactors = FALSE)
     },
-    embed_corpus_collect_openai_batch = function(project_dir, backend, label, verbose) {
+    batch_collect_openai = function(project_dir, backend, label, verbose) {
       list(
         state_file = state_file,
         checked_jobs = 0L,
@@ -117,7 +117,7 @@ testthat::test_that("finalize_demo_openai_batch writes comparison outputs when b
         failed_jobs = 0L
       )
     },
-    embed_corpus_submit_openai_batch = function(...) {
+    batch_submit_openai = function(...) {
       stop("submit should not be called by finalize")
     },
     .package = "openalexVectorComp"
@@ -130,7 +130,7 @@ testthat::test_that("finalize_demo_openai_batch writes comparison outputs when b
   testthat::expect_equal(nrow(cmp), 2L)
 })
 
-testthat::test_that("finalize_demo_openai_batch accepts api_key argument for token-scoped call", {
+testthat::test_that("demo_finalize_openai_batch accepts api_key argument for token-scoped call", {
   demo_dir <- make_demo_openai_workspace()
 
   old <- Sys.getenv("OVC_API_TOKEN", unset = "")
@@ -141,14 +141,14 @@ testthat::test_that("finalize_demo_openai_batch accepts api_key argument for tok
   Sys.unsetenv("OVC_API_TOKEN")
 
   out <- testthat::with_mocked_bindings(
-    openalexVectorComp::finalize_demo_openai_batch(
+    openalexVectorComp::demo_finalize_openai_batch(
       demo_dir = demo_dir,
       api_key = "temp-test-key",
       label = "corpus_batch",
       refresh_remote = TRUE,
       verbose = FALSE
     ),
-    embed_corpus_status_openai_batch = function(project_dir, label, refresh_remote) {
+    batch_status_openai = function(project_dir, label, refresh_remote) {
       testthat::expect_identical(Sys.getenv("OVC_API_TOKEN"), "temp-test-key")
       data.frame()
     },

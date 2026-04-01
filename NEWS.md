@@ -1,11 +1,11 @@
 # openalexVectorComp news
 
-## 0.2.0
+## 0.3.0
 
 ### New Features
 
-- Added explicit two-phase async OpenAI demo flow (`run_demo_openai_quarto()`
-  plus `finalize_demo_openai_batch()` follow-up).
+- Added explicit two-phase async OpenAI demo flow (`run_demo_openai()`
+  plus `demo_finalize_openai_batch()` follow-up).
 - Standardized demo defaults to `demos/openalex` and `demos/openai`.
 - Consolidated OpenAI batch helper naming and module organization.
 
@@ -26,7 +26,21 @@
 
 ### Breaking Changes
 
-- None.
+- Immediate API rename cleanup (no compatibility wrappers). Function mapping:
+
+| Old name | New name |
+|---|---|
+| `embed_corpus_submit_openai_batch()` | `batch_submit_openai()` |
+| `embed_corpus_status_openai_batch()` | `batch_status_openai()` |
+| `embed_corpus_collect_openai_batch()` | `batch_collect_openai()` |
+| `finalize_demo_openai_batch()` | `demo_finalize_openai_batch()` |
+| `run_demo_openai_quarto()` | `run_demo_openai()` |
+| `run_demo_openalex_quarto()` | `run_demo_openalex()` |
+| `embedding_backend_config()` | `backend_config()` |
+| `embedding_backend_info()` | `backend_info()` |
+| `embedding_backend_embed_texts()` | `backend_embed_texts()` |
+| `embedding_backend_read()` | `backend_read()` |
+| `embedding_backend_save()` | `backend_save()` |
 
 ## 0.1.4
 
