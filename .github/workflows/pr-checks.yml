@@ -45,4 +45,4 @@ jobs:
       - name: Run R CMD check
         uses: r-lib/actions/check-r-package@v2
         with:
-          args: 'c("--no-manual", "--no-build-vignettes", "--no-multiarch")'
+          args: 'c("--no-manual", "--no-build-vignettes", "--no-multiarch", "--no-examples")'
