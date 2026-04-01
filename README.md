@@ -1,18 +1,18 @@
 # openalexVectorComp
 
-**Auto-tagging via TEI embeddings + Qdrant**, implemented in R.
+**Auto-tagging via embedding backends and reference scoring**, implemented in R.
 
 ## Version
 
-Current development version: **0.1.4**.
+Current development version: **0.2.0**.
 
 - Embeddings served by **TEI** (Text Embeddings Inference; Hugging Face).
-- Vector search by **Qdrant**.
+- Embeddings via a **backend-neutral interface** (`hf`, `openai`, `tei`).
 - Scoring: **prototype cosine-distance** + **reference-area ridge score**
   (`distance_ridge()` + `score_ridge()`) + threshold calibration.
 - Works great with DuckDB/Arrow pipelines.
 
-## 0.1.4 Highlights
+## 0.2.0 Highlights
 
 - Demo defaults now use a shared structure:
   - `demos/openalex`
@@ -41,14 +41,12 @@ Or build & install from the zip you downloaded.
 
 ## Runtime dependencies
 
-- TEI server running (CPU is fine):
+- For `provider = "tei"`:
   ```bash
   text-embeddings-router --model BAAI/bge-small-en-v1.5 --port 8080
   ```
-
-- Qdrant server (optional if you only use modeling; required for ANN search):
-  - Binary: `./qdrant`
-  - Docker: `docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant`
+- For hosted embedding backends (`provider = "hf"` or `"openai"`), set
+  `OVC_API_TOKEN` in your environment.
 
 ## Vignettes
 
