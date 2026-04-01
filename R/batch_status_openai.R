@@ -7,7 +7,7 @@
 #'
 #' @return A data frame with one row per tracked job.
 #' @export
-embed_corpus_status_openai_batch <- function(
+batch_status_openai <- function(
   project_dir,
   label = "corpus",
   refresh_remote = TRUE
@@ -26,7 +26,7 @@ embed_corpus_status_openai_batch <- function(
   state <- .ovc_openai_state_read(state_file)
 
   if (isTRUE(refresh_remote) && length(state$jobs)) {
-    backend <- embedding_backend_config(
+    backend <- backend_config(
       provider = "openai",
       base_url = .ovc_or(state$backend$base_url, NULL),
       model = .ovc_or(state$model_id, NULL),
@@ -50,7 +50,7 @@ embed_corpus_status_openai_batch <- function(
 #' Collect completed OpenAI batch embedding jobs
 #'
 #' @param project_dir Project root directory.
-#' @param backend Backend configuration from [embedding_backend_config()]. Must
+#' @param backend Backend configuration from [backend_config()]. Must
 #'   use `provider = "openai"`.
 #' @param label Embedding label partition to collect into.
 #' @param verbose Logical; print progress messages.

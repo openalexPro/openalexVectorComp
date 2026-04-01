@@ -1,7 +1,7 @@
 Package: openalexVectorComp
 Type: Package
-Title: Auto-tagging via TEI Embeddings and Qdrant (Prototype-Margin + Ridge Logistic)
-Version: 0.2.0
+Title: Embedding Vectorization and Distance-Based Scoring Workflows
+Version: 0.3.0
 Authors@R: c(
     person(given = "Rainer", family = "Krug", role = c("aut", "cre"), email = "you@example.org"),
     person(given = "ChatGPT", family = "Assistant", role = "ctb")
@@ -9,10 +9,11 @@ Authors@R: c(
 Author: Rainer Krug [aut, cre],
   ChatGPT Assistant [ctb]
 Maintainer: Rainer Krug <you@example.org>
-Description: R-first orchestration for auto-tagging based on text embeddings served by
-    a TEI (Text Embeddings Inference) server and vector search in Qdrant.
-    Provides prototype-margin scoring, ridge logistic classification, simple ensembling,
-    calibration/threshold selection, and utilities to ingest/query Qdrant.
+Description: R-first orchestration for text vectorization (embeddings),
+    embedding distance computation, and distance-based scoring workflows.
+    Supports backend-neutral embedding providers (HF, OpenAI, TEI),
+    prototype cosine-distance scoring, reference-area distance scoring,
+    and threshold calibration utilities.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true

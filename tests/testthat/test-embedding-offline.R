@@ -20,7 +20,7 @@ testthat::test_that("embed_texts forwards to embedding backend adapter", {
       texts = c("a", "b"),
       backend = list(provider = "hf")
     ),
-    embedding_backend_embed_texts = function(texts, backend) {
+    backend_embed_texts = function(texts, backend) {
       seen <<- list(texts = texts, backend = backend)
       matrix(c(1, 2, 3, 4), nrow = 2, byrow = TRUE)
     },
@@ -197,7 +197,7 @@ testthat::test_that("OpenAI adapter accepts data.frame-shaped `data` payload", {
 
 testthat::test_that("embed_corpus respects delete_existing and skip unchanged rows", {
   proj <- make_tmp_corpus_project()
-  backend <- openalexVectorComp::embedding_backend_config(provider = "hf")
+  backend <- openalexVectorComp::backend_config(provider = "hf")
 
   model_dir <- testthat::with_mocked_bindings(
     openalexVectorComp::embed_corpus(
@@ -274,7 +274,7 @@ testthat::test_that("embed_corpus respects delete_existing and skip unchanged ro
 
 testthat::test_that("embed_corpus label partitions can coexist and delete_existing is label-scoped", {
   proj <- make_tmp_corpus_project()
-  backend <- openalexVectorComp::embedding_backend_config(provider = "hf")
+  backend <- openalexVectorComp::backend_config(provider = "hf")
 
   model_dir <- testthat::with_mocked_bindings(
     openalexVectorComp::embed_corpus(
@@ -354,7 +354,7 @@ testthat::test_that("embed_corpus label partitions can coexist and delete_existi
 
 testthat::test_that("embed_corpus accepts custom text_preprocessor and cleaner_args", {
   proj <- make_tmp_corpus_project()
-  backend <- openalexVectorComp::embedding_backend_config(provider = "hf")
+  backend <- openalexVectorComp::backend_config(provider = "hf")
   seen_suffix <- NULL
 
   my_preprocessor <- function(df, suffix = "X") {
@@ -422,7 +422,7 @@ testthat::test_that("embed_corpus accepts custom text_preprocessor and cleaner_a
 
 testthat::test_that("embed_corpus validates text_preprocessor output contract", {
   proj <- make_tmp_corpus_project()
-  backend <- openalexVectorComp::embedding_backend_config(provider = "hf")
+  backend <- openalexVectorComp::backend_config(provider = "hf")
 
   bad_missing <- function(df) data.frame(id = df$id, text = "x", stringsAsFactors = FALSE)
   testthat::expect_error(
@@ -464,7 +464,7 @@ testthat::test_that("embed_corpus validates text_preprocessor output contract", 
 
 testthat::test_that("embed_corpus dry_run preprocesses but does not write embeddings", {
   proj <- make_tmp_corpus_project()
-  backend <- openalexVectorComp::embedding_backend_config(provider = "hf")
+  backend <- openalexVectorComp::backend_config(provider = "hf")
   called <- FALSE
 
   model_dir <- testthat::with_mocked_bindings(

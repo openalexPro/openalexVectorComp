@@ -6,16 +6,16 @@
 #' @param texts Character vector of texts to embed. Empty inputs return a
 #'   0-row matrix; missing values are not supported.
 #' @param backend Backend configuration created with
-#'   [embedding_backend_config()].
+#'   [backend_config()].
 #'
 #' @return A numeric matrix with one row per input text and one column per
 #'   embedding dimension.
 #' @export
 embed_texts <- function(
   texts,
-  backend = embedding_backend_config()
+  backend = backend_config()
 ) {
-  embedding_backend_embed_texts(
+  backend_embed_texts(
     texts = texts,
     backend = backend
   )

@@ -43,20 +43,20 @@ Core flow:
 5. Optional threshold calibration (`calibrate_threshold()`).
 
 OpenAI batch flow:
-1. Submit (`embed_corpus_submit_openai_batch()`).
-2. Refresh status (`embed_corpus_status_openai_batch()`).
-3. Collect completed jobs (`embed_corpus_collect_openai_batch()`).
+1. Submit (`batch_submit_openai()`).
+2. Refresh status (`batch_status_openai()`).
+3. Collect completed jobs (`batch_collect_openai()`).
 4. Demo convenience wrapper:
-- `finalize_demo_openai_batch()` = status + collect + direct-vs-batch compare.
+- `demo_finalize_openai_batch()` = status + collect + direct-vs-batch compare.
 
-## 3. Current Demo Conventions (0.1.4)
+## 3. Current Demo Conventions (0.3.0)
 
 Default demo locations:
 - `demos/openalex`
 - `demos/openai`
 
 OpenAI demo behavior:
-- `run_demo_openai_quarto(..., render = TRUE)` may complete before batch does.
+- `run_demo_openai(..., render = TRUE)` may complete before batch does.
 - User is given explicit follow-up commands for status/finalize.
 - Batch comparison outputs are written to:
   `project/openai_batch_comparison/label=corpus_batch/`.
@@ -79,7 +79,7 @@ Template:
 - Date: 2026-04-01
 - Scope: OpenAI demo and batch comparison robustness
 - Decision: Implement two-phase OpenAI batch demo flow with
-  `finalize_demo_openai_batch()`.
+  `demo_finalize_openai_batch()`.
 - Why: Batch completion is asynchronous; render should not fail on pending jobs.
 - Alternatives considered: long blocking poll in render; hard-fail on timeout.
 - Impact: Clearer async semantics; stable demo render; persisted comparison

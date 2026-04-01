@@ -7,7 +7,7 @@
 #' @param project_dir Project root directory. Must contain
 #'   `project_dir/<corpus_name>` with columns `id`, `title`, `abstract`.
 #' @param backend Backend configuration created with
-#'   [embedding_backend_config()].
+#'   [backend_config()].
 #' @param corpus_name Folder name under `project_dir` containing the corpus
 #'   parquet dataset. Defaults to `"corpus"`.
 #' @param batch_size Number of corpus rows per Arrow scan batch.
@@ -36,7 +36,7 @@
 #' @export
 embed_corpus <- function(
   project_dir = NULL,
-  backend = embedding_backend_config(),
+  backend = backend_config(),
   corpus_name = "corpus",
   batch_size = 5000,
   delete_existing = FALSE,
@@ -56,7 +56,7 @@ embed_corpus <- function(
     stop("`batch_size` must be a positive number.")
   }
   if (!is.list(backend) || is.null(backend$provider)) {
-    stop("`backend` must come from embedding_backend_config().")
+    stop("`backend` must come from backend_config().")
   }
   if (!is.character(corpus_name) || length(corpus_name) != 1 || !nzchar(trimws(corpus_name))) {
     stop("`corpus_name` must be a non-empty character string.")
@@ -94,7 +94,7 @@ embed_corpus <- function(
     dir.create(emb_root, recursive = TRUE)
   }
 
-  info <- embedding_backend_info(backend)
+  info <- backend_info(backend)
   model_id <- info$model_id %||% backend$model
   if (is.null(model_id) || !nzchar(model_id)) {
     stop("Could not determine model id from backend info.")
@@ -121,7 +121,7 @@ embed_corpus <- function(
     backend_meta <- backend
     backend_meta$model <- model_id
     backend_meta$max_batch_size <- info$max_batch_size %||% backend$max_batch_size
-    embedding_backend_save(backend = backend_meta, fn = meta_path)
+    backend_save(backend = backend_meta, fn = meta_path)
 
     preproc_name <- if (identical(text_preprocessor, clean_abstract_for_embedding)) {
       "clean_abstract_for_embedding"

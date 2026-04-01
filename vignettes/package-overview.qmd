@@ -64,11 +64,11 @@ The package API is organized into these groups.
 
 ## 1) Embedding backend abstraction
 
-- `embedding_backend_config()`
-- `embedding_backend_info()`
-- `embedding_backend_embed_texts()`
-- `embedding_backend_read()`
-- `embedding_backend_save()`
+- `backend_config()`
+- `backend_info()`
+- `backend_embed_texts()`
+- `backend_read()`
+- `backend_save()`
 - `embed_texts()`
 
 These functions isolate provider-specific details and expose a stable interface.
@@ -130,7 +130,7 @@ flowchart TB
 
 Typical workflow for one project:
 
-1. Configure backend (`embedding_backend_config()`).
+1. Configure backend (`backend_config()`).
 2. Embed corpus (`embed_corpus()`).
 3. Compute distance signal (`distance_reference_cosine()` and/or `distance_ridge()`), then score (e.g. `score_reference_cosine()`, `score_ridge()`).
 4. Calibrate operating threshold (`calibrate_threshold()`).
@@ -148,7 +148,7 @@ sequenceDiagram
   participant SR as score_ridge
   participant CT as calibrate_threshold
 
-  U->>BC: embedding_backend_config(...)
+  U->>BC: backend_config(...)
   U->>EC: embed_corpus(project_dir, backend)
   EC->>ES: write embeddings parquet
   U->>DP: distance_reference_cosine(...)
@@ -240,7 +240,7 @@ flowchart LR
 ```r
 library(openalexVectorComp)
 
-backend <- embedding_backend_config(
+backend <- backend_config(
   provider = "hf",
   model = "BAAI/bge-small-en-v1.5",
   max_batch_size = 64

@@ -40,27 +40,27 @@ make_tmp_embeddings_no_vcols <- function() {
   emb_dir
 }
 
-testthat::test_that("embedding_backend_config validates numeric inputs", {
+testthat::test_that("backend_config validates numeric inputs", {
   testthat::expect_error(
-    embedding_backend_config(timeout = 0),
+    backend_config(timeout = 0),
     "`timeout` must be a positive number."
   )
   testthat::expect_error(
-    embedding_backend_config(timeout = -5),
+    backend_config(timeout = -5),
     "`timeout` must be a positive number."
   )
   testthat::expect_error(
-    embedding_backend_config(retries = -1),
+    backend_config(retries = -1),
     "`retries` must be >= 0."
   )
   testthat::expect_error(
-    embedding_backend_config(max_batch_size = 0),
+    backend_config(max_batch_size = 0),
     "`max_batch_size` must be a positive integer."
   )
 })
 
-testthat::test_that("embedding_backend_save/read round-trip and legacy compatibility", {
-  cfg <- embedding_backend_config(
+testthat::test_that("backend_save/read round-trip and legacy compatibility", {
+  cfg <- backend_config(
     provider = "hf",
     base_url = "https://router.huggingface.co/hf-inference",
     model = "BAAI/bge-small-en-v1.5",
@@ -69,10 +69,10 @@ testthat::test_that("embedding_backend_save/read round-trip and legacy compatibi
     retries = 4
   )
   fn <- tempfile(fileext = ".yaml")
-  saved <- embedding_backend_save(backend = cfg, fn = fn)
+  saved <- backend_save(backend = cfg, fn = fn)
   testthat::expect_identical(saved, fn)
 
-  back <- embedding_backend_read(fn)
+  back <- backend_read(fn)
   testthat::expect_identical(back$provider, cfg$provider)
   testthat::expect_identical(back$base_url, cfg$base_url)
   testthat::expect_identical(back$model, cfg$model)
@@ -95,14 +95,14 @@ testthat::test_that("embedding_backend_save/read round-trip and legacy compatibi
     ),
     legacy_fn
   )
-  legacy <- embedding_backend_read(legacy_fn)
+  legacy <- backend_read(legacy_fn)
   testthat::expect_identical(legacy$provider, "tei")
   testthat::expect_identical(legacy$model, "legacy-model")
   testthat::expect_identical(legacy$embed_url, "http://localhost:3000/embed")
 })
 
 testthat::test_that("embedding backend config applies tei_url override", {
-  cfg <- embedding_backend_config(
+  cfg <- backend_config(
     provider = "tei",
     base_url = "http://localhost:9999/",
     tei_url = "http://localhost:3000/embed///"
@@ -111,24 +111,24 @@ testthat::test_that("embedding backend config applies tei_url override", {
   testthat::expect_identical(cfg$base_url, "http://localhost:3000/embed")
 })
 
-testthat::test_that("embedding_backend_info and embed_texts validate backend/texts", {
+testthat::test_that("backend_info and embed_texts validate backend/texts", {
   testthat::expect_error(
-    embedding_backend_info(backend = list()),
+    backend_info(backend = list()),
     "`backend` must be a configuration object"
   )
   testthat::expect_error(
-    embedding_backend_info(backend = list(provider = "nope")),
+    backend_info(backend = list(provider = "nope")),
     "Unsupported backend provider"
   )
   testthat::expect_error(
-    embedding_backend_embed_texts(texts = 123),
+    backend_embed_texts(texts = 123),
     "`texts` must be a character vector."
   )
   testthat::expect_error(
-    embedding_backend_embed_texts(texts = "a", backend = list(provider = "nope")),
+    backend_embed_texts(texts = "a", backend = list(provider = "nope")),
     "Unsupported backend provider"
   )
-  out <- embedding_backend_embed_texts(texts = character())
+  out <- backend_embed_texts(texts = character())
   testthat::expect_true(is.matrix(out))
   testthat::expect_equal(nrow(out), 0)
 })
@@ -200,7 +200,7 @@ testthat::test_that("embed_corpus validates key inputs", {
   )
   testthat::expect_error(
     embed_corpus(project_dir = tempdir(), backend = list(), verbose = FALSE),
-    "`backend` must come from embedding_backend_config"
+    "`backend` must come from backend_config"
   )
   testthat::expect_error(
     embed_corpus(project_dir = tempdir(), corpus_name = "", verbose = FALSE),
@@ -239,7 +239,7 @@ testthat::test_that("embed_corpus validates key inputs", {
   )
   arrow::write_dataset(ok, path = file.path(td2, "papers"), format = "parquet")
 
-  backend <- embedding_backend_config(provider = "hf", model = "BAAI/bge-small-en-v1.5")
+  backend <- backend_config(provider = "hf", model = "BAAI/bge-small-en-v1.5")
   model_dir <- testthat::with_mocked_bindings(
     embed_corpus(
       project_dir = td2,

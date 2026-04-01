@@ -13,7 +13,7 @@
 #'   `file.path(getwd(), "demos", "openalex")`.
 #' @param render Logical; if `TRUE` (default), run `quarto render` on the
 #'   copied template.
-#' @param backend Optional backend config from [embedding_backend_config()]. If
+#' @param backend Optional backend config from [backend_config()]. If
 #'   `NULL`, defaults to Hugging Face (`provider = "hf"`,
 #'   model `"BAAI/bge-small-en-v1.5"`).
 #' @param max_corpus Maximum number of corpus fixture rows to copy.
@@ -25,7 +25,7 @@
 #'
 #' @return Invisibly returns a list with project paths and render status.
 #' @export
-run_demo_openalex_quarto <- function(
+run_demo_openalex <- function(
   demo_dir = file.path(getwd(), "demos", "openalex"),
   render = TRUE,
   backend = NULL,
@@ -80,14 +80,14 @@ run_demo_openalex_quarto <- function(
   project_dir <- file.path(demo_dir, "project")
 
   if (is.null(backend)) {
-    backend <- embedding_backend_config(
+    backend <- backend_config(
       provider = "hf",
       model = "BAAI/bge-small-en-v1.5"
     )
   }
   if (!is.list(backend) || is.null(backend$provider)) {
     stop(
-      "`backend` must be NULL or a backend config from `embedding_backend_config()`."
+      "`backend` must be NULL or a backend config from `backend_config()`."
     )
   }
 
@@ -138,7 +138,7 @@ run_demo_openalex_quarto <- function(
     stop("Failed to copy Quarto template to `", qmd_path, "`.")
   }
 
-  embedding_backend_save(backend = backend, fn = backend_yaml)
+  backend_save(backend = backend, fn = backend_yaml)
 
   if (verbose) {
     message("Demo workspace prepared at ", demo_dir)
@@ -182,7 +182,7 @@ run_demo_openalex_quarto <- function(
 
 #' Create and optionally run an OpenAI-based demo project via Quarto
 #'
-#' Uses the same demo structure as [run_demo_openalex_quarto()], but configures
+#' Uses the same demo structure as [run_demo_openalex()], but configures
 #' an OpenAI backend and requires an explicit API key argument. The key is set
 #' in `OVC_API_TOKEN` for the duration of the call.
 #'
@@ -202,7 +202,7 @@ run_demo_openalex_quarto <- function(
 #'
 #' @return Invisibly returns a list with project paths and render status.
 #' @export
-run_demo_openai_quarto <- function(
+run_demo_openai <- function(
   api_key,
   demo_dir = file.path(getwd(), "demos", "openai"),
   render = TRUE,
@@ -231,12 +231,12 @@ run_demo_openai_quarto <- function(
   )
   Sys.setenv(OVC_API_TOKEN = trimws(api_key))
 
-  backend <- embedding_backend_config(
+  backend <- backend_config(
     provider = "openai",
     model = trimws(model)
   )
 
-  out <- run_demo_openalex_quarto(
+  out <- run_demo_openalex(
     demo_dir = demo_dir,
     render = render,
     backend = backend,
@@ -248,14 +248,14 @@ run_demo_openai_quarto <- function(
   )
 
   status_cmd <- paste0(
-    "openalexVectorComp::embed_corpus_status_openai_batch(\n",
+    "openalexVectorComp::batch_status_openai(\n",
     "  project_dir = \"", out$project_dir, "\",\n",
     "  label = \"corpus_batch\",\n",
     "  refresh_remote = TRUE\n",
     ")"
   )
   finalize_cmd <- paste0(
-    "openalexVectorComp::finalize_demo_openai_batch(\n",
+    "openalexVectorComp::demo_finalize_openai_batch(\n",
     "  demo_dir = \"", out$demo_dir, "\",\n",
     "  api_key = keyring::key_get(\"API_openai_ipbes\"),\n",
     "  label = \"corpus_batch\"\n",
@@ -281,18 +281,18 @@ run_demo_openai_quarto <- function(
 #' `project/openai_batch_comparison/label=<label>/`.
 #'
 #' @param demo_dir Demo workspace directory created by
-#'   [run_demo_openai_quarto()] or [run_demo_openalex_quarto()].
+#'   [run_demo_openai()] or [run_demo_openalex()].
 #' @param api_key Optional OpenAI API key. If provided, it is set in
 #'   `OVC_API_TOKEN` for the duration of this call.
 #' @param label Batch embedding label to finalize. Defaults to `"corpus_batch"`.
 #' @param refresh_remote Logical; forwarded to
-#'   [embed_corpus_status_openai_batch()].
+#'   [batch_status_openai()].
 #' @param verbose Logical; print progress messages.
 #'
 #' @return Invisibly returns a list containing status/collect summaries,
 #'   comparison readiness, and output paths.
 #' @export
-finalize_demo_openai_batch <- function(
+demo_finalize_openai_batch <- function(
   demo_dir,
   api_key = NULL,
   label = "corpus_batch",
@@ -339,7 +339,7 @@ finalize_demo_openai_batch <- function(
     stop("Missing demo project directory: ", project_dir)
   }
 
-  backend <- embedding_backend_read(backend_yaml)
+  backend <- backend_read(backend_yaml)
   provider <- tolower(as.character(if (is.null(backend$provider)) "" else backend$provider))
   if (!identical(provider, "openai")) {
     stop("`demo_backend.yaml` must configure provider = 'openai'.")
@@ -356,7 +356,7 @@ finalize_demo_openai_batch <- function(
   }
   model_id_dir <- if (length(model_dirs) == 1L) model_dirs[[1]] else ""
 
-  status_df <- embed_corpus_status_openai_batch(
+  status_df <- batch_status_openai(
     project_dir = project_dir,
     label = label,
     refresh_remote = refresh_remote
@@ -372,7 +372,7 @@ finalize_demo_openai_batch <- function(
     failed_jobs = 0L
   )
   if (file.exists(state_file)) {
-    collect_info <- embed_corpus_collect_openai_batch(
+    collect_info <- batch_collect_openai(
       project_dir = project_dir,
       backend = backend,
       label = label,
