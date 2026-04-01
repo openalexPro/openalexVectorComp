@@ -1,6 +1,6 @@
 # openalexVectorComp
 
-**Auto-tagging via embedding backends and reference scoring**, implemented in R.
+**Embedding of Corpora**, implemented in R.
 
 ## Version
 
