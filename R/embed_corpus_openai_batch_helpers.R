@@ -1,4 +1,14 @@
 .ovc_or <- function(x, y) if (is.null(x)) y else x
+
+.ovc_openai_custom_id <- function(id, text_hash) {
+  key <- paste0(as.character(id), "::", as.character(text_hash))
+  hash <- vapply(
+    key,
+    function(k) digest::digest(k, algo = "xxhash64", serialize = FALSE),
+    character(1)
+  )
+  paste0("cid_", hash)
+}
 .ovc_validate_openai_batch_inputs <- function(
   project_dir,
   backend,
@@ -223,7 +233,7 @@
     prev <- unname(existing_hash[df$id])
     keep <- is.na(prev) | prev != df$text_hash
 
-    custom_id <- paste0(df$id, "::", df$text_hash)
+    custom_id <- .ovc_openai_custom_id(df$id, df$text_hash)
     keep <- keep & !(custom_id %in% queued_custom_ids)
     skipped <- skipped + sum(!keep)
 
@@ -234,7 +244,7 @@
       # Keep text temporarily for request building; drop only before manifest writing.
     }
 
-    df$custom_id <- paste0(df$id, "::", df$text_hash)
+    df$custom_id <- .ovc_openai_custom_id(df$id, df$text_hash)
     out[[length(out) + 1L]] <- df
   }
 

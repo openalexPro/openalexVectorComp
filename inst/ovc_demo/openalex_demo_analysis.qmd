@@ -1,6 +1,6 @@
 ---
 title: "openalexVectorComp Demo Analysis"
-subtitle: "Reference vs Corpus Workflow"
+subtitle: "Reference vs Corpus Tutorial Workflow"
 format:
   html:
     toc: true
@@ -11,19 +11,20 @@ format:
     code-summary: "Show code"
     anchor-sections: true
     embed-resources: true
-    theme: flatly
+    theme: litera
     include-in-header:
       text: |
         <style>
         main.content {
-          max-width: 1100px;
+          max-width: 1000px;
         }
         .quarto-title-block .quarto-title-banner {
-          background: linear-gradient(120deg, #16335b 0%, #1f4f8a 100%);
+          background: linear-gradient(120deg, #143451 0%, #20689f 100%);
           color: #ffffff;
         }
         .callout {
-          border-radius: 8px;
+          border-radius: 10px;
+          border-width: 1px;
         }
         .cell-output pre, pre {
           white-space: pre-wrap;
@@ -31,10 +32,13 @@ format:
           word-break: break-word;
         }
         .cell-output pre {
-          background: #eef4ff;
-          border: 1px solid #d4e2ff;
-          border-radius: 6px;
+          background: #f5f8fd;
+          border: 1px solid #dbe7f7;
+          border-radius: 8px;
           padding: 0.75rem;
+        }
+        table td, table th {
+          vertical-align: top;
         }
         </style>
 execute:
@@ -43,11 +47,12 @@ execute:
   message: true
 ---
 
-This demo runs a complete reference-vs-corpus workflow from the current
-project directory. It is designed to be inspectable, so each step writes files
-to disk and keeps them for review.
+This tutorial walks through a complete `openalexVectorComp` pipeline from raw
+corpus/reference text to distance and score outputs. It is intentionally
+step-by-step so you can both understand what each function does and reuse the
+pattern in your own project.
 
-```{r demo-version-info, echo=FALSE, eval=TRUE}
+```{r demo-version-info, echo=FALSE}
 pkg_version <- tryCatch(
   as.character(utils::packageVersion("openalexVectorComp")),
   error = function(e) "development"
@@ -55,15 +60,28 @@ pkg_version <- tryCatch(
 cat("**openalexVectorComp version:** ", pkg_version, "\n\n", sep = "")
 ```
 
-# 1. Setup
+## Who this tutorial is for
 
-In setup we load the package, read backend configuration, and verify that both
-`corpus/` and `reference_corpus/` are present. This ensures later steps fail
-early with clear causes if inputs are missing.
+Use this tutorial if you want to:
 
-::: {.callout-note}
-This section checks inputs only. No embeddings are created yet.
-:::
+- understand the practical role of each pipeline function,
+- compare direct embedding with optional OpenAI async batch embedding,
+- adapt the project structure and workflow to your own datasets.
+
+## Mental model of the pipeline
+
+The workflow has four layers:
+
+1. prepare and validate text,
+2. embed corpus/reference text,
+3. compute vector distances,
+4. transform distances into scores for ranking/filtering.
+
+# Setup
+
+We start by loading the package, reading backend config, and validating input
+directories. This makes early failures explicit and avoids expensive requests
+when setup is incomplete.
 
 ```{r setup-environment}
 library(openalexVectorComp)
@@ -78,18 +96,9 @@ stopifnot(dir.exists(corpus_dir))
 stopifnot(dir.exists(reference_dir))
 ```
 
-## Model Configuration
+## Active model/backend configuration
 
-This demo reads backend configuration from `demo_backend.yaml` in the demo
-workspace (`demo_dir`). The file is created by
-`run_demo_openalex_quarto()` using `embedding_backend_save()`.
-
-After embeddings are generated, the effective model metadata used for the run
-is written to:
-
-- `project/embeddings/model_id=<...>/embed_model.yaml`
-
-### Current backend in this demo
+This table is your first checkpoint when results look unexpected.
 
 ```{r model-configuration-info}
 info <- embedding_backend_info(backend)
@@ -97,11 +106,7 @@ info <- embedding_backend_info(backend)
 data.frame(
   field = c("provider", "model", "model_id", "base_url"),
   value = c(
-    if (is.null(backend$provider)) {
-      NA_character_
-    } else {
-      as.character(backend$provider)
-    },
+    if (is.null(backend$provider)) NA_character_ else as.character(backend$provider),
     if (is.null(backend$model)) NA_character_ else as.character(backend$model),
     if (is.null(info$model_id)) NA_character_ else as.character(info$model_id),
     if (is.null(info$base_url)) NA_character_ else as.character(info$base_url)
@@ -110,10 +115,7 @@ data.frame(
 )
 ```
 
-### Model references
-
-The model should be interpretable and traceable. Use these documentation pages
-to review model behavior and limits:
+## Model references and documentation links
 
 ```{r model-reference-links}
 provider <- if (is.null(backend$provider)) {
@@ -157,59 +159,25 @@ docs <- data.frame(
 docs
 ```
 
-### Where this is stored
+## How model choice affects cost and runtime
 
-- Input configuration file: `demo_backend.yaml`
-- Runtime model metadata (written after embedding):
-  `project/embeddings/model_id=<...>/embed_model.yaml`
+Main runtime/cost drivers:
 
-### How to change the model
+- row count,
+- text length per row (tokens),
+- re-embedding frequency.
 
-#### Option A: edit YAML directly
+Practical strategy:
 
-Edit `demo_backend.yaml` before rendering. Typical fields are provider, model,
-and endpoint/base URL.
+- run dry-run first to validate cleaning and avoid unnecessary calls,
+- keep labels separate (`corpus`, `reference`, optional `corpus_batch`) so
+  experiments do not overwrite each other.
 
-#### Option B: regenerate YAML from R
+# Dry run for text preparation
 
-Hugging Face example:
-
-```{r model-config-example-hf}
-backend_hf <- embedding_backend_config(
-  provider = "hf",
-  model = "BAAI/bge-small-en-v1.5"
-)
-embedding_backend_save(backend_hf, fn = "demo_backend.yaml")
-```
-
-OpenAI example (token must be available in `OVC_API_TOKEN`):
-
-```{r model-config-example-openai}
-#| eval: false
-
-Sys.setenv(OVC_API_TOKEN = "<your-openai-token>")
-
-backend_openai <- embedding_backend_config(
-  provider = "openai",
-  model = "text-embedding-3-small"
-)
-embedding_backend_save(backend_openai, fn = "demo_backend.yaml")
-```
-
-::: {.callout-tip}
-Why this matters: embeddings define the geometric space for all downstream
-distance and score computations. Changing model changes comparability.
-:::
-
-# 2. Dry Run: Text Preparation
-
-This optional dry run executes text preparation and hashing without requesting
-embeddings. It writes preview Parquet files so you can inspect what would be
-submitted.
-
-::: {.callout-tip}
-Use this step to validate custom cleaning logic before spending API calls.
-:::
+`embed_corpus(..., dry_run = TRUE)` runs preprocessing and hashing without
+requesting embeddings. Use this to validate text quality before spending API
+costs.
 
 ```{r dry-run-embedding-preparation}
 embed_corpus(
@@ -230,31 +198,17 @@ embed_corpus(
   delete_existing = FALSE,
   verbose = TRUE
 )
-
-arrow::read_parquet(
-  file.path(
-    project_dir,
-    "reference_corpus_dryrun.parquet"
-  )
-)
-
-arrow::read_parquet(
-  file.path(
-    project_dir,
-    "corpus_dryrun.parquet"
-  )
-)
 ```
 
-# 3. Embed Corpus Label
+```{r inspect-dry-run}
+arrow::read_parquet(file.path(project_dir, "reference_corpus_dryrun.parquet"))
+arrow::read_parquet(file.path(project_dir, "corpus_dryrun.parquet"))
+```
 
-This step embeds the main corpus and stores vectors under label `corpus`.
-`model_id_dir` is captured so downstream distance functions read exactly the
-same embedding model partition.
+# Direct embedding: corpus
 
-::: {.callout-note}
-Embeddings are written to `project/embeddings/model_id=<...>/label=corpus/`.
-:::
+`embed_corpus()` reads input parquet, calls the configured backend, and writes
+canonical embedding parquet shards under `project/embeddings/...`.
 
 ```{r embed-corpus-label}
 model_dir <- embed_corpus(
@@ -267,14 +221,9 @@ model_dir <- embed_corpus(
 model_id_dir <- basename(model_dir)
 ```
 
-# 4. Embed Reference Label
+# Direct embedding: reference
 
-This step embeds `project/reference_corpus` by setting
-`corpus_name = "reference_corpus"` and writes results under label `reference`.
-
-::: {.callout-note}
-Using labels keeps corpus and reference vectors separate under the same model.
-:::
+We embed the reference set separately using `label = "reference"`.
 
 ```{r embed-reference-label}
 embed_corpus(
@@ -285,18 +234,117 @@ embed_corpus(
   delete_existing = FALSE,
   verbose = TRUE
 )
-
 ```
 
-# 5. Reference-Cosine Distances
+# Optional OpenAI batch embedding and direct-vs-batch comparison
 
-`distance_reference_cosine()` computes cosine distances between all corpus and
-reference vectors, and adds centroid axes. This creates a full distance matrix
-for transparent inspection.
+If provider is OpenAI, this section submits async batch embedding for the same
+corpus under `label = "corpus_batch"` and attempts a short status/collect loop.
+If jobs are still pending, render continues and prints the exact finalize
+command for later.
 
-::: {.callout-note}
-Distance values are lower for closer vectors.
+The batch helpers have different roles:
+
+- `embed_corpus_submit_openai_batch()`: enqueue jobs and return quickly.
+- `embed_corpus_status_openai_batch()`: refresh/report remote job states.
+- `embed_corpus_collect_openai_batch()`: download completed outputs and write
+  local batch embedding parquet files.
+
+`finalize_demo_openai_batch()` combines status + collect + compare and returns
+`comparison_ready = FALSE` instead of error when not ready yet.
+
+::: {.callout-tip}
+After render, check and finalize OpenAI batch jobs with:
+```r
+openalexVectorComp::embed_corpus_status_openai_batch(
+  project_dir = "./project",
+  label = "corpus_batch",
+  refresh_remote = TRUE
+)
+
+openalexVectorComp::finalize_demo_openai_batch(
+  demo_dir = ".",
+  api_key = keyring::key_get("API_openai_ipbes"),
+  label = "corpus_batch"
+)
+```
 :::
+
+```{r openai-batch-compare}
+provider_name <- tolower(as.character(if (is.null(backend$provider)) "" else backend$provider))
+
+if (!identical(provider_name, "openai")) {
+  message("Skipping OpenAI batch section because provider is: ", provider_name)
+} else {
+  batch_label <- "corpus_batch"
+
+  submit_info <- embed_corpus_submit_openai_batch(
+    project_dir = project_dir,
+    backend = backend,
+    corpus_name = "corpus",
+    label = batch_label,
+    delete_existing = TRUE,
+    verbose = TRUE
+  )
+  submit_info
+
+  max_polls <- 20L
+  poll_sleep_sec <- 3
+  status_df <- data.frame()
+  collect_info <- NULL
+
+  for (i in seq_len(max_polls)) {
+    status_df <- embed_corpus_status_openai_batch(
+      project_dir = project_dir,
+      label = batch_label,
+      refresh_remote = TRUE
+    )
+
+    collect_info <- embed_corpus_collect_openai_batch(
+      project_dir = project_dir,
+      backend = backend,
+      label = batch_label,
+      verbose = TRUE
+    )
+
+    if (isTRUE(collect_info$downloaded_jobs > 0L)) break
+
+    statuses <- tolower(as.character(status_df$status))
+    if (length(statuses) && all(statuses %in% c("completed", "failed", "expired", "cancelled"))) {
+      break
+    }
+
+    Sys.sleep(poll_sleep_sec)
+  }
+
+  status_df
+  collect_info
+
+  finalize_out <- finalize_demo_openai_batch(
+    demo_dir = ".",
+    label = batch_label,
+    refresh_remote = TRUE,
+    verbose = TRUE
+  )
+
+  if (!isTRUE(finalize_out$comparison_ready)) {
+    message(finalize_out$message)
+    message(
+      "Run later: openalexVectorComp::finalize_demo_openai_batch(\"",
+      normalizePath(getwd(), mustWork = FALSE),
+      "\", api_key = keyring::key_get(\"API_openai_ipbes\"))"
+    )
+  } else {
+    finalize_out$summary_df
+    head(finalize_out$comparison_df, 10)
+  }
+}
+```
+
+# Reference-cosine distance
+
+`distance_reference_cosine()` computes a full distance matrix between corpus
+and reference vectors, including centroid axes.
 
 ```{r compute-reference-cosine-distance}
 distance_dir <- distance_reference_cosine(
@@ -307,19 +355,12 @@ distance_dir <- distance_reference_cosine(
   verbose = TRUE
 )
 
-arrow::read_parquet(
-  file.path(distance_dir, "pairwise-cosine.parquet")
-)
+arrow::read_parquet(file.path(distance_dir, "pairwise-cosine.parquet"))
 ```
 
-# 6. Reference-Cosine Scores
+# Reference-cosine scores
 
-Scoring converts distances into a more interpretable ranking signal.
-With `method = "linear"`, score = `1 - distance` for every matrix cell.
-
-::: {.callout-note}
-Scores are a post-processing step; raw distances stay unchanged on disk.
-:::
+`score_reference_cosine()` converts distances to ranking-friendly scores.
 
 ```{r score-reference-cosine-distance}
 score_reference_dir <- score_reference_cosine(
@@ -335,15 +376,11 @@ arrow::open_dataset(
   dplyr::collect()
 ```
 
-# 7. Ridge Area Distances and Scores
+# Ridge area distance and score
 
-`distance_ridge()` models the reference label as an embedding area
-(center + covariance) and calculates distance of each corpus item to that area.
-`score_ridge()` then maps area distance to `relevance_score`.
-
-::: {.callout-note}
-This gives a second relevance view based on reference-area geometry.
-:::
+`distance_ridge()` models the reference set as an embedding area and computes
+how far each corpus row lies from that area. `score_ridge()` maps that distance
+to `relevance_score`.
 
 ```{r compute-and-score-ridge-distance}
 distance_ridge_dir <- distance_ridge(
@@ -365,11 +402,10 @@ arrow::open_dataset(
   dplyr::collect()
 ```
 
-# 8. Output Structure
+# Output structure and how to reuse it
 
-The final listing helps verify the output layout and where each artifact was
-written (`embeddings`, `distance_reference_cosine`, `score_reference_cosine`,
-`distance_ridge`, `score_ridge`).
+This tree makes the artifact structure explicit. Reuse the same structure in
+your own projects so downstream steps can be automated reliably.
 
 ```{r list-demo-output-files}
 print_tree <- function(path, prefix = "") {

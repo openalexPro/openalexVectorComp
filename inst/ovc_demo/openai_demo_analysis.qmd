@@ -1,0 +1,500 @@
+---
+title: "openalexVectorComp OpenAI Demo"
+subtitle: "Direct vs Batch Embedding Workflow"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    df-print: paged
+    code-fold: show
+    code-summary: "Show code"
+    anchor-sections: true
+    embed-resources: true
+    theme: litera
+    include-in-header:
+      text: |
+        <style>
+        main.content {
+          max-width: 1000px;
+        }
+        .quarto-title-block .quarto-title-banner {
+          background: linear-gradient(120deg, #0f2f4f 0%, #1a5b8f 100%);
+          color: #ffffff;
+        }
+        .callout {
+          border-radius: 10px;
+          border-width: 1px;
+        }
+        .cell-output pre, pre {
+          white-space: pre-wrap;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
+        .cell-output pre {
+          background: #f5f8fd;
+          border: 1px solid #dbe7f7;
+          border-radius: 8px;
+          padding: 0.75rem;
+        }
+        table td, table th {
+          vertical-align: top;
+        }
+        </style>
+execute:
+  echo: true
+  warning: true
+  message: true
+---
+
+This OpenAI demo shows both embedding paths:
+
+1. direct synchronous embedding (immediate vectors),
+2. asynchronous OpenAI batch embedding (submit now, finalize later).
+
+The goal is to make the trade-off explicit: direct is immediate and simple;
+batch is built for large workloads and may finish later.
+
+## Who this tutorial is for
+
+Use this tutorial if you want to:
+
+- understand what each pipeline function does (not just run it),
+- decide when to use direct embedding vs async batch,
+- transfer this workflow to your own corpus/reference project layout.
+
+## Prerequisites
+
+You need:
+
+- a valid OpenAI API key,
+- `demo_backend.yaml` configured for provider `openai`,
+- corpus files in `project/corpus` and `project/reference_corpus`.
+
+## Mental model of the workflow
+
+The full flow has four layers:
+
+1. **Prepare text** (`dry_run`) to verify input quality and avoid paying for bad text.
+2. **Embed text** either directly (immediate) or via async batch (deferred).
+3. **Compute distances** between corpus and reference vectors.
+4. **Score and inspect** outputs for ranking/relevance workflows.
+
+```{r demo-version-info, echo=FALSE}
+pkg_version <- tryCatch(
+  as.character(utils::packageVersion("openalexVectorComp")),
+  error = function(e) "development"
+)
+cat("**openalexVectorComp version:** ", pkg_version, "\n\n", sep = "")
+```
+
+# Setup
+
+We load package config from `demo_backend.yaml`, assert this is an OpenAI demo,
+and verify required input folders exist.
+
+This keeps failures early and explicit. If setup fails, nothing expensive has
+been called yet.
+
+```{r setup-environment}
+library(openalexVectorComp)
+
+backend <- embedding_backend_read(file.path(".", "demo_backend.yaml"))
+provider <- tolower(as.character(if (is.null(backend$provider)) "" else backend$provider))
+stopifnot(identical(provider, "openai"))
+
+project_dir <- file.path(".", "project")
+corpus_dir <- file.path(project_dir, "corpus")
+reference_dir <- file.path(project_dir, "reference_corpus")
+
+stopifnot(dir.exists(corpus_dir))
+stopifnot(dir.exists(reference_dir))
+```
+
+## Active OpenAI configuration
+
+This is the backend used for all calls in this report.
+In your own projects, this table is the first thing to check when outputs look
+unexpected.
+
+```{r model-configuration-info}
+info <- embedding_backend_info(backend)
+
+data.frame(
+  field = c("provider", "model", "model_id", "base_url"),
+  value = c(
+    as.character(backend$provider),
+    as.character(backend$model),
+    as.character(info$model_id),
+    if (is.null(info$base_url)) NA_character_ else as.character(info$base_url)
+  ),
+  stringsAsFactors = FALSE
+)
+```
+
+## Direct vs Batch at a glance
+
+::: {.callout-important}
+Use direct embedding for fast iteration and small jobs.  
+Use batch for larger production loads where delayed completion is acceptable.
+:::
+
+| Dimension | Direct embedding | Batch embedding |
+|---|---|---|
+| Latency | Immediate response per call | Delayed completion (async) |
+| Operational pattern | Single request/response loop | Submit, poll status, collect later |
+| Failure mode | Immediate HTTP failure | Job lifecycle states (`in_progress`, `completed`, etc.) |
+| Cost profile | Standard online request path | Often better suited for bulk cost/throughput trade-offs |
+| Best use | Development, quick checks, smaller corpora | Larger corpora, scheduled/offline processing |
+
+## Cost and operational considerations
+
+::: {.callout-note}
+Exact pricing changes over time. Always verify on the official OpenAI pricing
+page before production runs.
+:::
+
+Main cost drivers in this workflow:
+
+- number of rows sent for embedding,
+- text length per row (token count),
+- re-embedding frequency when source text changes.
+
+Practical controls used here:
+
+- run `dry_run` first to validate cleaning and reduce waste,
+- separate labels (`corpus`, `reference`, `corpus_batch`) so you can compare
+  methods without overwriting,
+- use async batch for larger volumes where latency is less important than
+  throughput and stability.
+
+# Dry run for text preparation
+
+Before spending API calls, we run the same preprocessing and hashing logic in
+`dry_run` mode to inspect what will be embedded.
+
+What to look for in the dry-run tables:
+
+- Is text too short/too noisy for your use case?
+- Are there duplicates or obvious cleanup issues?
+- Does the text composition (title + abstract) match your retrieval goal?
+
+```{r dry-run-embedding-preparation}
+embed_corpus(
+  project_dir = project_dir,
+  backend = backend,
+  label = "corpus",
+  dry_run = TRUE,
+  delete_existing = FALSE,
+  verbose = TRUE
+)
+
+embed_corpus(
+  project_dir = project_dir,
+  backend = backend,
+  corpus_name = "reference_corpus",
+  label = "reference",
+  dry_run = TRUE,
+  delete_existing = FALSE,
+  verbose = TRUE
+)
+```
+
+```{r inspect-dry-run}
+arrow::read_parquet(file.path(project_dir, "reference_corpus_dryrun.parquet"))
+arrow::read_parquet(file.path(project_dir, "corpus_dryrun.parquet"))
+```
+
+# Direct embedding (corpus and reference)
+
+We first create direct embeddings. This gives immediate vectors and a stable
+baseline for later direct-vs-batch comparison.
+
+`embed_corpus()` does three things:
+
+1. reads the parquet input partition (`corpus` or `reference_corpus`),
+2. calls the configured backend to generate vectors,
+3. writes canonical parquet shards under
+   `project/embeddings/model_id=.../label=.../`.
+
+This direct path is the easiest to debug because failures are immediate.
+
+```{r embed-corpus-label}
+model_dir <- embed_corpus(
+  project_dir = project_dir,
+  backend = backend,
+  label = "corpus",
+  delete_existing = FALSE,
+  verbose = TRUE
+)
+model_id_dir <- basename(model_dir)
+```
+
+```{r embed-reference-label}
+embed_corpus(
+  project_dir = project_dir,
+  backend = backend,
+  corpus_name = "reference_corpus",
+  label = "reference",
+  delete_existing = FALSE,
+  verbose = TRUE
+)
+```
+
+# OpenAI batch workflow and comparison
+
+This section submits a batch job for the same corpus under label
+`corpus_batch`. It then performs a short polling window and tries collection.
+
+If OpenAI has not finished yet, the render does not fail. It prints a concrete
+follow-up command so you can finalize later.
+
+This is deliberate: batch is asynchronous by design. A robust production flow
+must tolerate "not ready yet" states.
+
+## What each batch function does
+
+The async workflow has three separate responsibilities:
+
+- `embed_corpus_submit_openai_batch()`: creates batch request files, uploads
+  them, and returns quickly with tracked job ids.
+- `embed_corpus_status_openai_batch()`: refreshes and reports remote job
+  states (`in_progress`, `completed`, `failed`, ...), but does not write
+  embeddings.
+- `embed_corpus_collect_openai_batch()`: downloads completed batch outputs and
+  writes canonical embedding parquet files under
+  `project/embeddings/model_id=.../label=corpus_batch/...`.
+
+`finalize_demo_openai_batch()` wraps the status + collect + comparison steps
+for convenience. If jobs are still pending, it returns a non-error
+`comparison_ready = FALSE`.
+
+Interpretation guide:
+
+- `status` answers: *What is OpenAI currently doing with my job?*
+- `collect` answers: *Did completed jobs produce local embedding files yet?*
+- `finalize` answers: *Can I already compare direct and batch vectors?*
+
+::: {.callout-tip}
+Use these commands after render to check and finalize batch jobs:
+```r
+openalexVectorComp::embed_corpus_status_openai_batch(
+  project_dir = "./project",
+  label = "corpus_batch",
+  refresh_remote = TRUE
+)
+
+openalexVectorComp::finalize_demo_openai_batch(
+  demo_dir = ".",
+  api_key = keyring::key_get("API_openai_ipbes"),
+  label = "corpus_batch"
+)
+```
+:::
+
+```{r openai-batch-compare}
+batch_label <- "corpus_batch"
+
+submit_info <- embed_corpus_submit_openai_batch(
+  project_dir = project_dir,
+  backend = backend,
+  corpus_name = "corpus",
+  label = batch_label,
+  delete_existing = TRUE,
+  verbose = TRUE
+)
+submit_info
+
+max_polls <- 20L
+poll_sleep_sec <- 3
+status_df <- data.frame()
+collect_info <- NULL
+
+for (i in seq_len(max_polls)) {
+  status_df <- embed_corpus_status_openai_batch(
+    project_dir = project_dir,
+    label = batch_label,
+    refresh_remote = TRUE
+  )
+
+  collect_info <- embed_corpus_collect_openai_batch(
+    project_dir = project_dir,
+    backend = backend,
+    label = batch_label,
+    verbose = TRUE
+  )
+
+  if (isTRUE(collect_info$downloaded_jobs > 0L)) break
+
+  statuses <- tolower(as.character(status_df$status))
+  if (length(statuses) && all(statuses %in% c("completed", "failed", "expired", "cancelled"))) {
+    break
+  }
+
+  Sys.sleep(poll_sleep_sec)
+}
+
+status_df
+collect_info
+
+finalize_out <- finalize_demo_openai_batch(
+  demo_dir = ".",
+  label = batch_label,
+  refresh_remote = TRUE,
+  verbose = TRUE
+)
+
+if (!isTRUE(finalize_out$comparison_ready)) {
+  message(finalize_out$message)
+  message(
+    "Run later: openalexVectorComp::finalize_demo_openai_batch(",
+    "\"", normalizePath(getwd(), mustWork = FALSE), "\"",
+    ", api_key = keyring::key_get(\"API_openai_ipbes\"))"
+  )
+} else {
+  finalize_out$summary_df
+  head(finalize_out$comparison_df, 10)
+}
+```
+
+After this chunk:
+
+- if `comparison_ready = TRUE`, review summary similarity values and max
+  absolute differences to assess numerical parity;
+- if `comparison_ready = FALSE`, run the finalize command later and proceed
+  with direct embeddings in the meantime.
+
+## Why tiny differences are expected
+
+When comparison is available, you may see values like:
+
+- cosine similarity very close to 1 (for example `0.999999...`),
+- max absolute difference very close to 0 (for example `0.000122`).
+
+This is expected. Exact `1` and `0` only occur when vectors are bit-identical.
+Small differences usually come from floating-point rounding and different
+execution paths in distributed systems.
+
+```{r inspect-direct-vs-batch-differences}
+comparison_path <- file.path(
+  project_dir,
+  "openai_batch_comparison",
+  "label=corpus_batch",
+  "comparison.parquet"
+)
+
+if (!file.exists(comparison_path)) {
+  message("No comparison parquet found yet. Run finalize again after batch completion.")
+} else {
+  cmp <- arrow::read_parquet(comparison_path)
+
+  cat("Distinct cosine similarities (default print):\n")
+  print(dplyr::distinct(cmp, cosine_similarity))
+  cat("\nDistinct max absolute differences:\n")
+  print(dplyr::distinct(cmp, max_abs_diff))
+
+  cat("\nTop rows by max_abs_diff:\n")
+  print(
+    cmp |>
+      dplyr::arrange(dplyr::desc(max_abs_diff)) |>
+      dplyr::select(id, cosine_similarity, max_abs_diff) |>
+      head(10)
+  )
+
+  old_digits <- getOption("digits")
+  options(digits = 17)
+  on.exit(options(digits = old_digits), add = TRUE)
+  cat("\nHigh-precision unique values:\n")
+  print(unique(cmp$cosine_similarity))
+  print(unique(cmp$max_abs_diff))
+}
+```
+
+# Distance and score workflow
+
+The remaining steps are unchanged from the core workflow: compute distances and
+scores from direct corpus/reference embeddings.
+
+These steps are shown even when batch is pending because your project can
+continue with the direct path while batch catches up.
+
+```{r compute-reference-cosine-distance}
+distance_dir <- distance_reference_cosine(
+  project_dir = project_dir,
+  embeddings_dir = model_id_dir,
+  corpus_label = "corpus",
+  reference_label = "reference",
+  verbose = TRUE
+)
+
+arrow::read_parquet(file.path(distance_dir, "pairwise-cosine.parquet"))
+```
+
+```{r score-reference-cosine-distance}
+score_reference_dir <- score_reference_cosine(
+  distance_parquet = distance_dir,
+  method = "linear",
+  verbose = TRUE
+)
+
+arrow::open_dataset(
+  score_reference_dir,
+  factory_options = list(exclude_invalid_files = TRUE)
+) |>
+  dplyr::collect()
+```
+
+```{r compute-and-score-ridge-distance}
+distance_ridge_dir <- distance_ridge(
+  project_dir = project_dir,
+  reference_label = "reference",
+  corpus_label = "corpus",
+  verbose = TRUE
+)
+
+score_ridge_dir <- score_ridge(
+  distance_parquet = distance_ridge_dir,
+  verbose = TRUE
+)
+
+arrow::open_dataset(
+  score_ridge_dir,
+  factory_options = list(exclude_invalid_files = TRUE)
+) |>
+  dplyr::collect()
+```
+
+# Output structure
+
+This final tree view shows exactly where each artifact was written.
+
+When applying this to your own project, keep this directory structure pattern:
+
+- `embeddings/` for vector artifacts,
+- `openai_batch/` for batch job manifests/outputs,
+- `openai_batch_comparison/` for direct-vs-batch checks,
+- `distance_*` and `score_*` for downstream modeling.
+
+```{r list-demo-output-files}
+print_tree <- function(path, prefix = "") {
+  entries <- list.files(path, all.files = FALSE, full.names = TRUE, no.. = TRUE)
+  entries <- entries[order(tolower(basename(entries)))]
+  if (!length(entries)) return(invisible(NULL))
+
+  for (i in seq_along(entries)) {
+    entry <- entries[[i]]
+    is_last <- i == length(entries)
+    branch <- if (is_last) "└── " else "├── "
+    cat(prefix, branch, basename(entry), if (dir.exists(entry)) "/" else "", "\n", sep = "")
+
+    if (dir.exists(entry)) {
+      next_prefix <- paste0(prefix, if (is_last) "    " else "│   ")
+      print_tree(entry, next_prefix)
+    }
+  }
+  invisible(NULL)
+}
+
+cat(basename(project_dir), "/\n", sep = "")
+print_tree(project_dir)
+```

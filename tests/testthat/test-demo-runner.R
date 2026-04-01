@@ -41,6 +41,8 @@ testthat::test_that("run_demo_openalex_quarto prepares demo project with fixture
   testthat::expect_match(qmd_text, "score_reference_cosine\\(")
   testthat::expect_match(qmd_text, "distance_ridge\\(")
   testthat::expect_match(qmd_text, "score_ridge\\(")
+  testthat::expect_match(qmd_text, "finalize_demo_openai_batch\\(")
+  testthat::expect_match(qmd_text, "Run later: openalexVectorComp::finalize_demo_openai_batch")
 
   testthat::expect_identical(normalizePath(out$demo_dir), normalizePath(proj))
   testthat::expect_identical(normalizePath(out$project_dir), normalizePath(file.path(proj, "project")))
@@ -128,4 +130,40 @@ testthat::test_that("optional demo render works when quarto and token are availa
 
   testthat::expect_true(isTRUE(out$rendered))
   testthat::expect_true(file.exists(file.path(proj, "openalex_demo_analysis.html")))
+})
+
+testthat::test_that("run_demo_openai_quarto requires api_key and configures OpenAI backend", {
+  td <- tempfile("ovc_demo_openai_")
+  dir.create(td, recursive = TRUE, showWarnings = FALSE)
+  proj <- file.path(td, "demo_project_openai")
+
+  testthat::expect_error(
+    run_demo_openai_quarto(
+      api_key = "",
+      demo_dir = proj,
+      render = FALSE,
+      verbose = FALSE
+    ),
+    "api_key"
+  )
+
+  out <- run_demo_openai_quarto(
+    api_key = "test-key",
+    demo_dir = proj,
+    render = FALSE,
+    max_corpus = 12,
+    max_reference = 4,
+    overwrite = FALSE,
+    verbose = FALSE
+  )
+
+  testthat::expect_true(file.exists(file.path(proj, "openai_demo_analysis.qmd")))
+  testthat::expect_true(file.exists(file.path(proj, "demo_backend.yaml")))
+
+  backend <- openalexVectorComp::embedding_backend_read(
+    file.path(proj, "demo_backend.yaml")
+  )
+  testthat::expect_identical(tolower(as.character(backend$provider)), "openai")
+  testthat::expect_identical(as.character(backend$model), "text-embedding-3-small")
+  testthat::expect_false(out$rendered)
 })

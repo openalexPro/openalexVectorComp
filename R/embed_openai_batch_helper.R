@@ -22,14 +22,40 @@
 }
 
 .openai_batch_upload_file <- function(backend, file_path) {
+  form_file <- utils::getFromNamespace("form_file", "curl")
   req <- .openai_batch_request(backend, "/files", method = "POST") |>
+    httr2::req_error(is_error = function(resp) FALSE) |>
     httr2::req_body_multipart(
       purpose = "batch",
-      file = httr2::req_body_file(file_path)
+      file = form_file(
+        path = file_path,
+        type = "application/jsonl",
+        name = basename(file_path)
+      )
     )
 
   res <- .embedding_with_retry(backend, function() {
-    httr2::req_perform(req) |> httr2::resp_body_json(simplifyVector = TRUE)
+    resp <- httr2::req_perform(req)
+    status <- httr2::resp_status(resp)
+    body <- try(httr2::resp_body_json(resp, simplifyVector = TRUE), silent = TRUE)
+    if (status >= 400L) {
+      msg <- ""
+      if (!inherits(body, "try-error") && is.list(body)) {
+        msg <- .ovc_or(body$error$message, "")
+      }
+      if (!nzchar(msg)) {
+        msg <- try(httr2::resp_body_string(resp), silent = TRUE)
+        if (inherits(msg, "try-error")) msg <- ""
+      }
+      stop(
+        "OpenAI file upload failed (HTTP ", status, "). ",
+        if (nzchar(msg)) msg else "No error body returned."
+      )
+    }
+    if (inherits(body, "try-error")) {
+      stop("OpenAI file upload returned a non-JSON response.")
+    }
+    body
   })
 
   if (is.null(res$id) || !nzchar(as.character(res$id))) {

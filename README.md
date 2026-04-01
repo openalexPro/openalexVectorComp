@@ -2,11 +2,33 @@
 
 **Auto-tagging via TEI embeddings + Qdrant**, implemented in R.
 
+## Version
+
+Current development version: **0.1.4**.
+
 - Embeddings served by **TEI** (Text Embeddings Inference; Hugging Face).
 - Vector search by **Qdrant**.
 - Scoring: **prototype cosine-distance** + **reference-area ridge score**
   (`distance_ridge()` + `score_ridge()`) + threshold calibration.
 - Works great with DuckDB/Arrow pipelines.
+
+## 0.1.4 Highlights
+
+- Demo defaults now use a shared structure:
+  - `demos/openalex`
+  - `demos/openai`
+- OpenAI demo uses an explicit two-phase async workflow:
+  - render now (submit/poll briefly),
+  - finalize later (status/collect/compare) if batch is still pending.
+- Added tutorial-style demo narratives with clearer explanation of workflow
+  choices, costs/latency trade-offs, and interpretation of direct-vs-batch
+  embedding differences.
+
+## Development Continuity
+
+See `inst/DEVELOPMENT_CONTINUITY.md` for design principles, architectural
+decisions, and the required pre-commit update checklist that keeps development
+context continuous for both humans and AI agents.
 
 ## Install (local)
 
@@ -38,11 +60,11 @@ Start with `vignettes/simplestart.qmd`, then see:
 
 ## Run a Local Demo Project
 
-Create a full demo in `getwd()/demo_project` (fixtures + Quarto analysis):
+Create a full demo in `getwd()/demos/openalex` (fixtures + Quarto analysis):
 
 ```r
 run_demo_openalex_quarto(
-  demo_dir = file.path(getwd(), "demo_project"),
+  demo_dir = file.path(getwd(), "demos", "openalex"),
   render = FALSE
 )
 ```
@@ -51,6 +73,31 @@ Set `render = TRUE` to run `quarto render` directly. For hosted backends
 (`provider = "hf"` or `"openai"`), set `OVC_API_TOKEN` first.
 The Quarto file and backend YAML are placed in `demo_dir`, while all pipeline
 artifacts are written under `demo_dir/project/`.
+
+OpenAI-specific demo (same structure, explicit API key argument):
+
+```r
+run_demo_openai_quarto(
+  api_key = Sys.getenv("OVC_API_TOKEN"),
+  demo_dir = file.path(getwd(), "demos", "openai"),
+  render = FALSE
+)
+```
+
+The OpenAI demo now follows a two-phase async flow:
+1. `run_demo_openai_quarto(..., render = TRUE)` submits batch and continues.
+2. If batch is still pending, finalize later:
+
+```r
+finalize_demo_openai_batch(
+  demo_dir = file.path(getwd(), "demos", "openai"),
+  api_key = Sys.getenv("OVC_API_TOKEN"),
+  label = "corpus_batch"
+)
+```
+
+This writes comparison outputs to:
+`project/openai_batch_comparison/label=corpus_batch/`.
 
 ## OpenAI Batch Workflow (Async, Pure R)
 

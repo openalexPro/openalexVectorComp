@@ -1,7 +1,7 @@
 Package: openalexVectorComp
 Type: Package
 Title: Auto-tagging via TEI Embeddings and Qdrant (Prototype-Margin + Ridge Logistic)
-Version: 0.1.3
+Version: 0.2.0
 Authors@R: c(
     person(given = "Rainer", family = "Krug", role = c("aut", "cre"), email = "you@example.org"),
     person(given = "ChatGPT", family = "Assistant", role = "ctb")
@@ -38,7 +38,7 @@ Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 VignetteBuilder: knitr, quarto
-URL: https://github.com/rkrug/openalexVectorComp
+URL: https://github.com/rkrug/openalexVectorComp, https://rkrug.github.io/openalexVectorComp/
 BugReports: https://github.com/rkrug/openalexVectorComp/issues
 RoxygenNote: 7.3.3
 Roxygen: list(markdown = TRUE)

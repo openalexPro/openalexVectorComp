@@ -27,6 +27,7 @@ testthat::test_that("submit splits jobs by request count", {
   backend <- fake_openai_backend()
   uploads <- 0L
   creates <- 0L
+  uploaded_lines <- integer()
 
   out <- testthat::with_mocked_bindings(
     openalexVectorComp::embed_corpus_submit_openai_batch(
@@ -38,6 +39,7 @@ testthat::test_that("submit splits jobs by request count", {
     ),
     .openai_batch_upload_file = function(backend, file_path) {
       uploads <<- uploads + 1L
+      uploaded_lines <<- c(uploaded_lines, length(readLines(file_path, warn = FALSE)))
       paste0("file_", uploads)
     },
     .openai_batch_create = function(backend, input_file_id, completion_window = "24h") {
@@ -51,6 +53,7 @@ testthat::test_that("submit splits jobs by request count", {
   testthat::expect_equal(out$submitted_rows, 5L)
   testthat::expect_equal(uploads, 3L)
   testthat::expect_equal(creates, 3L)
+  testthat::expect_true(all(uploaded_lines > 0L))
 
   state <- jsonlite::fromJSON(out$state_file, simplifyVector = FALSE)
   testthat::expect_length(state$jobs, 3L)
@@ -234,4 +237,3 @@ testthat::test_that("collect ingests completed jobs and is idempotent", {
   files2 <- list.files(model_dir, pattern = "embeddings-.*[.]parquet$", recursive = TRUE, full.names = TRUE)
   testthat::expect_length(files2, 1L)
 })
-

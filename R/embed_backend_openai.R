@@ -40,8 +40,32 @@
     if (is.null(res$data) || !length(res$data)) {
       stop("OpenAI embedding response did not contain `data`.")
     }
-    emb <- lapply(res$data, function(x) x$embedding)
-    emb <- .embedding_as_matrix(emb)
+    data_part <- res$data
+    emb_raw <- NULL
+
+    if (is.data.frame(data_part)) {
+      if (!("embedding" %in% names(data_part))) {
+        stop("OpenAI embedding response `data` did not include `embedding`.")
+      }
+      emb_raw <- data_part$embedding
+    } else if (is.list(data_part)) {
+      # Typical shape: list(list(embedding = ...), ...)
+      has_embedding <- vapply(
+        data_part,
+        function(x) is.list(x) && !is.null(x$embedding),
+        logical(1)
+      )
+      if (length(has_embedding) && all(has_embedding)) {
+        emb_raw <- lapply(data_part, function(x) x$embedding)
+      } else {
+        # Fallback for already-extracted embedding vectors.
+        emb_raw <- data_part
+      }
+    } else {
+      stop("OpenAI embedding response `data` has unsupported shape.")
+    }
+
+    emb <- .embedding_as_matrix(emb_raw)
     if (nrow(emb) != length(batch)) {
       stop(
         "Embedding count mismatch: got ",

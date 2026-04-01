@@ -162,6 +162,39 @@ testthat::test_that("adapter functions error on malformed embedding payloads", {
   )
 })
 
+testthat::test_that("OpenAI adapter accepts data.frame-shaped `data` payload", {
+  oa_fun <- getFromNamespace(".embedding_embed_texts_openai", "openalexVectorComp")
+
+  out <- testthat::with_mocked_bindings(
+    oa_fun(
+      texts = c("a", "b"),
+      backend = list(
+        provider = "openai",
+        base_url = "https://api.openai.com/v1",
+        model = "text-embedding-3-small",
+        max_batch_size = 2L,
+        retries = 0L
+      )
+    ),
+    .embedding_with_retry = function(backend, fn) {
+      list(
+        data = data.frame(
+          index = c(0L, 1L),
+          object = c("embedding", "embedding"),
+          embedding = I(list(c(1, 2), c(3, 4))),
+          stringsAsFactors = FALSE
+        )
+      )
+    },
+    .package = "openalexVectorComp"
+  )
+
+  testthat::expect_equal(dim(out), c(2L, 2L))
+  testthat::expect_identical(colnames(out), c("V1", "V2"))
+  testthat::expect_equal(unname(out[1, ]), c(1, 2))
+  testthat::expect_equal(unname(out[2, ]), c(3, 4))
+})
+
 testthat::test_that("embed_corpus respects delete_existing and skip unchanged rows", {
   proj <- make_tmp_corpus_project()
   backend <- openalexVectorComp::embedding_backend_config(provider = "hf")

@@ -142,6 +142,7 @@ embed_corpus_submit_openai_batch <- function(
     max_requests_per_job = max_requests_per_job,
     max_job_bytes = max_job_bytes
   )
+  prepared <- split$prepared
 
   if (isTRUE(split$split_by_size) && verbose) {
     cli::cli_alert_warning("Preflight split jobs by byte-size limits; submitting {length(split$jobs)} jobs.")
@@ -182,6 +183,8 @@ embed_corpus_submit_openai_batch <- function(
     manifest_cols <- c(manifest_cols, extra_cols)
     manifest <- job_df[, manifest_cols, drop = FALSE]
     arrow::write_parquet(manifest, manifest_path)
+    req_path_abs <- normalizePath(req_path, mustWork = FALSE)
+    manifest_path_abs <- normalizePath(manifest_path, mustWork = FALSE)
 
     file_id <- .openai_batch_upload_file(backend, req_path)
     batch <- .openai_batch_create(backend, input_file_id = file_id, completion_window = completion_window)
@@ -194,9 +197,9 @@ embed_corpus_submit_openai_batch <- function(
       input_file_id = as.character(file_id),
       output_file_id = as.character(.ovc_or(batch$output_file_id, "")),
       error_file_id = as.character(.ovc_or(batch$error_file_id, "")),
-      local_input_jsonl = req_path,
+      local_input_jsonl = req_path_abs,
       local_output_jsonl = "",
-      manifest_parquet = manifest_path,
+      manifest_parquet = manifest_path_abs,
       row_count_submitted = as.integer(nrow(job_df)),
       row_count_downloaded = 0L,
       downloaded_at = "",
