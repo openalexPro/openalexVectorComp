@@ -1,0 +1,300 @@
+# backend-architecture
+
+## Purpose
+
+This vignette documents the embedding backend architecture in
+`openalexVectorComp`:
+
+- how the dispatch layer works,
+- call order during embedding,
+- provider-specific responsibilities,
+- how to add a new backend safely.
+
+The focus is implementation details, not end-user quickstart usage.
+
+## File Structure
+
+Backend logic is split into one core file and provider-specific files:
+
+- `R/embed_backend_core.R`:
+  - [`embedding_backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_config.md)
+  - [`embedding_backend_info()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_info.md)
+  - [`embedding_backend_embed_texts()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_embed_texts.md)
+  - shared helpers (`.embedding_with_retry()`,
+    `.embedding_request_base()`, …)
+- `R/embed_backend_hf.R`:
+  - `.embedding_info_hf()`
+  - `.embedding_embed_texts_hf()`
+- `R/embed_backend_openai.R`:
+  - `.embedding_info_openai()`
+  - `.embedding_embed_texts_openai()`
+- `R/embed_backend_tei.R`:
+  - `.embedding_info_tei()`
+  - `.embedding_embed_texts_tei()`
+
+## High-Level Backend Flow
+
+``` mermaid
+flowchart TD
+  A[embedding_backend_config] --> B[embedding_backend_info]
+  A --> C[embedding_backend_embed_texts]
+  C --> D{provider}
+  D -->|hf| E[.embedding_embed_texts_hf]
+  D -->|openai| F[.embedding_embed_texts_openai]
+  D -->|tei| G[.embedding_embed_texts_tei]
+  E --> H[Matrix V1..Vd]
+  F --> H
+  G --> H
+```
+
+## End-to-End Call Order in `embed_corpus()`
+
+The
+[`embed_corpus()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus.md)
+function is now a pipeline orchestrator that uses the backend layer.
+
+``` mermaid
+sequenceDiagram
+  participant User
+  participant embed_corpus
+  participant Core as embed_backend_core
+  participant Provider as provider_adapter
+  participant API as embedding_endpoint
+  participant FS as parquet_output
+
+  User->>embed_corpus: embed_corpus(project_dir, backend=...)
+  embed_corpus->>Core: embedding_backend_config(...) (if backend is NULL)
+  embed_corpus->>Core: embedding_backend_info(backend)
+  embed_corpus->>FS: Load existing hashes (id + text_hash)
+  loop Arrow scan batches
+    embed_corpus->>embed_corpus: Build canonical text
+    embed_corpus->>embed_corpus: Filter unchanged rows
+    embed_corpus->>Core: embedding_backend_embed_texts(texts, backend)
+    Core->>Provider: provider dispatch
+    Provider->>API: batched HTTP requests
+    API-->>Provider: vectors
+    Provider-->>Core: matrix
+    Core-->>embed_corpus: matrix
+    embed_corpus->>FS: write parquet batch
+  end
+  embed_corpus-->>User: output model directory
+```
+
+## Data Contract
+
+### Input dataset expected by `embed_corpus()`
+
+- `id`
+- `title`
+- `abstract`
+
+### Canonical text construction
+
+For each row:
+
+- if abstract exists:
+  - `Title: {title}\nAbstract: {abstract}`
+- else:
+  - `Title: {title}`
+
+### Output columns per embedded row
+
+- `id`
+- `text_hash`
+- `provider`
+- `model_id`
+- `created_at`
+- `V1..Vd`
+
+Embeddings are stored by partition path:
+
+- `embeddings/model_id=<...>/label=<...>/batch=<n>/embeddings-*.parquet`
+
+## Shared Backend Rules
+
+All provider adapters should follow these rules:
+
+1.  Return a numeric matrix with one row per input text.
+2.  Set output column names to `V1..Vd`.
+3.  Raise an error when output row count mismatches input size.
+4.  Use `.embedding_with_retry()` for transient failures.
+5.  Use `.embedding_request_base()` so auth is consistent.
+
+## Authentication Model
+
+The backend layer uses one environment variable:
+
+- `OVC_API_TOKEN`
+
+When set, requests include:
+
+- `Authorization: Bearer <OVC_API_TOKEN>`
+
+This keeps auth handling provider-agnostic.
+
+## Provider Responsibilities
+
+### Hugging Face (`provider = "hf"`)
+
+- Default base URL: `https://router.huggingface.co/hf-inference`
+- Default model: `BAAI/bge-small-en-v1.5`
+- Embedding endpoint shape:
+  - `/models/{model}`
+- Body shape:
+  - `{"inputs": [...]}`.
+
+### OpenAI (`provider = "openai"`)
+
+- Default base URL: `https://api.openai.com/v1`
+- Default model: `text-embedding-3-small`
+- Embedding endpoint:
+  - `/embeddings`
+- Body shape:
+  - `{"model": "...", "input": [...]}`.
+
+### TEI (`provider = "tei"`)
+
+- Default base URL: `http://localhost:3000`
+- Embedding endpoint:
+  - `/embed` (or explicit full endpoint via `tei_url`)
+- Probes `/info` when available; gracefully degrades when not available.
+
+## Function Examples
+
+### 1) HF backend (default-style)
+
+``` r
+library(openalexVectorComp)
+
+backend <- embedding_backend_config(
+  provider = "hf",
+  model = "BAAI/bge-small-en-v1.5",
+  max_batch_size = 64
+)
+
+info <- embedding_backend_info(backend)
+emb <- embedding_backend_embed_texts(
+  texts = c("Title: A\nAbstract: B", "Title: C\nAbstract: D"),
+  backend = backend
+)
+dim(emb)
+```
+
+### 2) OpenAI backend
+
+``` r
+backend <- embedding_backend_config(
+  provider = "openai",
+  model = "text-embedding-3-small",
+  max_batch_size = 256
+)
+```
+
+### 3) Local TEI backend
+
+``` r
+backend <- embedding_backend_config(
+  provider = "tei",
+  base_url = "http://localhost:3000",
+  max_batch_size = 128
+)
+```
+
+## How to Add a New Backend
+
+Assume new provider name `"acme"`.
+
+### Step 1: add dispatch entry in core
+
+In
+[`embedding_backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_config.md):
+
+- include `"acme"` in `provider = c(...)`
+- define provider defaults in `switch(provider, ...)`
+
+In
+[`embedding_backend_info()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_info.md):
+
+- add branch: `acme = .embedding_info_acme(backend)`
+
+In
+[`embedding_backend_embed_texts()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_embed_texts.md):
+
+- add branch: `acme = .embedding_embed_texts_acme(texts, backend)`
+
+### Step 2: create provider file
+
+Create `R/embed_backend_acme.R`:
+
+- `.embedding_info_acme(backend)`
+- `.embedding_embed_texts_acme(texts, backend)`
+
+Use helpers from core:
+
+- `.embedding_with_retry()`
+- `.embedding_request_base()`
+- `.embedding_as_matrix()`
+- `.embedding_batch_starts()`
+
+### Step 3: enforce adapter contract
+
+Before returning, ensure:
+
+1.  `nrow(emb) == length(batch)`
+2.  matrix numeric
+3.  `colnames(emb) <- paste0("V", seq_len(ncol(emb)))`
+
+### Step 4: docs and validation
+
+- document provider behavior in this vignette and roxygen comments.
+- run roxygen:
+
+``` r
+roxygen2::roxygenise(".", load = "source")
+```
+
+- parse/check:
+
+``` r
+for (f in list.files("R", pattern = "[.]R$", full.names = TRUE)) {
+  parse(f)
+}
+```
+
+## Operational Flowchart for `embed_corpus()`
+
+``` mermaid
+flowchart TB
+  classDef default fill:#f7f9fc,stroke:#4b5563,color:#111827;
+  linkStyle default stroke:#374151,stroke-width:2px,color:#374151;
+  A[Read corpus batch] --> B[Build canonical text]
+  B --> C[Compute text_hash]
+  C --> D{hash changed?}
+  D -->|No| E[Skip row]
+  D -->|Yes| F[Embed via backend]
+  F --> G[Validate matrix rows]
+  G --> H[Write parquet batch]
+  H --> I[Update in-memory hash index]
+  E --> J{More batches?}
+  I --> J
+  J -->|Yes| A
+  J -->|No| K[Return model_dir]
+```
+
+## Troubleshooting
+
+### 401 / 403 from provider API
+
+- Check `OVC_API_TOKEN`.
+- Verify token scope for the selected provider/model.
+
+### Row mismatch errors
+
+- Provider returned fewer/more vectors than inputs.
+- Reduce `max_batch_size` and retry.
+
+### Model metadata unavailable (`dim = NA`)
+
+- Some hosted endpoints do not expose model info.
+- This is acceptable; downstream code should infer dimensions from
+  embeddings.

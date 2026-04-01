@@ -1,0 +1,14 @@
+pandoc: 3.1.11
+pkgdown: 2.2.0
+pkgdown_sha: ~
+articles:
+  abstract-cleaning: abstract-cleaning.html
+  backend-architecture: backend-architecture.html
+  openai-batch-async: openai-batch-async.html
+  package-overview: package-overview.html
+  simplestart: simplestart.html
+  tei-server-operations: tei-server-operations.html
+last_built: 2026-04-01T11:33Z
+urls:
+  reference: https://rkrug.github.io/openalexVectorComp/reference
+  article: https://rkrug.github.io/openalexVectorComp/articles

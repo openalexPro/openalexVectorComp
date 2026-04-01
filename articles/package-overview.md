@@ -1,0 +1,327 @@
+# package-overview
+
+## Purpose
+
+This vignette provides a full package-level overview of
+`openalexVectorComp`:
+
+- design philosophy,
+- core function groups,
+- end-to-end workflow,
+- storage layout,
+- practical usage patterns,
+- extension points.
+
+It is intended as the orientation document before using the technical
+vignettes.
+
+## Package Philosophy
+
+The package follows five core principles:
+
+1.  **Pipeline-first orchestration**
+    - Handle large corpora in batches with Arrow/Parquet.
+2.  **Backend-neutral embedding interface**
+    - Use one config/dispatch API for HF, OpenAI, or TEI.
+3.  **Deterministic resume behavior**
+    - Use `id + text_hash` to skip unchanged rows safely.
+4.  **Pluggable text preparation**
+    - Let users inject custom cleaners while preserving contracts.
+5.  **Transparent scoring workflow**
+    - Keep similarity, prototype distance, ridge scoring, and
+      calibration separable and inspectable.
+
+``` mermaid
+flowchart LR
+  A[Large corpus] --> B[Deterministic preprocessing]
+  B --> C[Backend-neutral embedding]
+  C --> D[Reproducible storage]
+  D --> E[Distance and classification]
+  E --> F[Threshold calibration]
+  F --> G[Operational decisions]
+```
+
+## Function Groups
+
+The package API is organized into these groups.
+
+### 1) Embedding backend abstraction
+
+- [`embedding_backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_config.md)
+- [`embedding_backend_info()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_info.md)
+- [`embedding_backend_embed_texts()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_embed_texts.md)
+- [`embedding_backend_read()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_read.md)
+- [`embedding_backend_save()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_save.md)
+- [`embed_texts()`](https://rkrug.github.io/openalexVectorComp/reference/embed_texts.md)
+
+These functions isolate provider-specific details and expose a stable
+interface.
+
+### 2) Corpus embedding orchestration
+
+- [`embed_corpus()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus.md)
+
+This is the main batch pipeline driver for production embedding runs.
+
+### 3) Text preparation
+
+- [`clean_abstract_for_embedding()`](https://rkrug.github.io/openalexVectorComp/reference/clean_abstract_for_embedding.md)
+
+Default implementation for title/abstract cleaning and canonical text
+creation.
+
+### 4) Similarity and distance
+
+- [`similarity_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/similarity_cosine.md)
+- [`distance_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/distance_cosine.md)
+- [`distance_reference_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/distance_reference_cosine.md)
+- [`score_reference_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/score_reference_cosine.md)
+
+These functions quantify embedding-space relevance from geometric
+perspectives.
+
+Internal helper note:
+
+- [`distances()`](https://rkrug.github.io/openalexVectorComp/reference/distances.md)
+  exists as a non-exported helper for joining distance datasets.
+
+### 5) Supervised scoring and calibration
+
+- [`fit_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/fit_ridge.md)
+- [`distance_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/distance_ridge.md)
+- [`score_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/score_ridge.md)
+- [`calibrate_threshold()`](https://rkrug.github.io/openalexVectorComp/reference/calibrate_threshold.md)
+
+These functions produce calibrated decision-ready scores.
+
+### 6) Embedding-space visualization
+
+- [`plot_embeddings_pca()`](https://rkrug.github.io/openalexVectorComp/reference/plot_embeddings_pca.md)
+- [`plot_embeddings_umap()`](https://rkrug.github.io/openalexVectorComp/reference/plot_embeddings_umap.md)
+
+These functions support diagnostics and qualitative checks.
+
+``` mermaid
+flowchart TB
+  A[Backend Abstraction] --> B[embed_corpus]
+  C[Text Preparation] --> B
+  B --> D[Stored embeddings]
+  D --> E[Similarity and distance]
+  D --> F[Ridge scoring]
+  E --> G[Threshold calibration]
+  F --> G
+  D --> H[PCA/UMAP diagnostics]
+```
+
+## Canonical Workflow
+
+Typical workflow for one project:
+
+1.  Configure backend
+    ([`embedding_backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_config.md)).
+2.  Embed corpus
+    ([`embed_corpus()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus.md)).
+3.  Compute distance signal
+    ([`distance_reference_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/distance_reference_cosine.md)
+    and/or
+    [`distance_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/distance_ridge.md)),
+    then score
+    (e.g. [`score_reference_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/score_reference_cosine.md),
+    [`score_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/score_ridge.md)).
+4.  Calibrate operating threshold
+    ([`calibrate_threshold()`](https://rkrug.github.io/openalexVectorComp/reference/calibrate_threshold.md)).
+5.  Validate with plots
+    ([`plot_embeddings_pca()`](https://rkrug.github.io/openalexVectorComp/reference/plot_embeddings_pca.md)
+    /
+    [`plot_embeddings_umap()`](https://rkrug.github.io/openalexVectorComp/reference/plot_embeddings_umap.md)).
+
+``` mermaid
+sequenceDiagram
+  participant U as User
+  participant BC as backend_config
+  participant EC as embed_corpus
+  participant ES as embedding_store
+  participant DP as distance_reference_cosine
+  participant SCP as score_reference_cosine
+  participant DR as distance_ridge
+  participant SR as score_ridge
+  participant CT as calibrate_threshold
+
+  U->>BC: embedding_backend_config(...)
+  U->>EC: embed_corpus(project_dir, backend)
+  EC->>ES: write embeddings parquet
+  U->>DP: distance_reference_cosine(...)
+  U->>SCP: score_reference_cosine(...)
+  U->>DR: distance_ridge(...)
+  U->>SR: score_ridge(...)
+  U->>CT: calibrate_threshold(...)
+```
+
+## Data and Storage Model
+
+### Corpus input
+
+[`embed_corpus()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus.md)
+expects:
+
+- `project_dir/corpus` as Arrow dataset
+- columns: `id`, `title`, `abstract`
+
+### Embeddings output
+
+Embeddings are written under:
+
+- `project_dir/embeddings/model_id=<model>/label=<label>/batch=*/embeddings-*.parquet`
+- metadata in:
+  - `project_dir/embeddings/model_id=<model>/embed_model.yaml`
+
+### Dry-run output
+
+When `dry_run = TRUE`, no embeddings are written. Instead:
+
+- `project_dir/<corpus_name>_dryrun.parquet`
+
+This file supports auditing preprocessing behavior (including custom
+cleaners).
+
+``` mermaid
+flowchart TB
+  A[project_dir/corpus] --> B[embed_corpus]
+  B --> C[model_id=.../embed_model.yaml]
+  B --> D[model_id=.../label=.../batch=*/embeddings-*.parquet]
+  B --> E[<corpus_name>_dryrun.parquet]
+```
+
+## Text-Preparation Contract
+
+[`embed_corpus()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus.md)
+accepts:
+
+- `text_preprocessor` (function)
+- `cleaner_args` (named list)
+
+The preprocessor must return a data frame with:
+
+- `id`
+- `text`
+- `text_hash`
+
+Optional columns are preserved and can be persisted (e.g., quality
+flags).
+
+### Why this contract matters
+
+- ensures skip/resume determinism,
+- enables provider-independent cleaning strategies,
+- allows quality provenance without altering backend adapters.
+
+## Decision Model: Geometric + Supervised
+
+The package supports two complementary relevance styles:
+
+1.  **Prototype distance**
+    - pairwise cosine distances between reference and corpus label
+      partitions.
+2.  **Reference-area distance + score (`distance_ridge` +
+    `score_ridge`)**
+    - Mahalanobis-style distance to the reference label area
+      (`area_distance`)
+    - optional conversion to `relevance_score`.
+
+Use one or both, then calibrate threshold for target operating behavior.
+
+``` mermaid
+flowchart LR
+  A[Embeddings] --> B[Prototype distance]
+  A --> C[Reference-area score]
+  B --> D[Ranked candidates]
+  C --> D
+  D --> E[calibrate_threshold]
+  E --> F[Precision/recall operating point]
+```
+
+## Minimal End-to-End Example
+
+``` r
+library(openalexVectorComp)
+
+backend <- embedding_backend_config(
+  provider = "hf",
+  model = "BAAI/bge-small-en-v1.5",
+  max_batch_size = 64
+)
+
+model_dir <- embed_corpus(
+  project_dir = "my_project",
+  backend = backend,
+  batch_size = 5000,
+  delete_existing = FALSE,
+  label = "corpus",
+  save_text = TRUE
+)
+
+embed_corpus(
+  project_dir = "my_project",
+  backend = backend,
+  batch_size = 5000,
+  delete_existing = FALSE,
+  label = "reference",
+  save_text = TRUE
+)
+
+pairwise_dir <- distance_reference_cosine(
+  project_dir = "my_project",
+  embeddings_dir = basename(model_dir),
+  corpus_label = "corpus",
+  reference_label = "reference"
+)
+pairwise_score_dir <- score_reference_cosine(
+  distance_parquet = pairwise_dir,
+  method = "linear"
+)
+
+# Optional supervised scoring path
+scores_dir <- distance_ridge(
+  project_dir = "my_project",
+  reference_label = "reference",
+  corpus_label = "corpus"
+)
+scores_dir <- score_ridge(scores_dir)
+
+best <- calibrate_threshold(
+  scores_parquet = scores_dir,
+  score_col = "relevance_score",
+  labels_parquet = "labels.parquet"
+)
+```
+
+## Operational Guidance
+
+- Start with HF defaults for initial setup.
+- Keep `save_text = TRUE` in alpha/review phases for auditability.
+- Use `dry_run = TRUE` to validate custom cleaners before API spend.
+- Prefer `mode = "balanced"` in
+  [`clean_abstract_for_embedding()`](https://rkrug.github.io/openalexVectorComp/reference/clean_abstract_for_embedding.md)
+  unless you have measured reasons to go stricter.
+- Re-calibrate thresholds whenever model, cleaner policy, or label set
+  changes.
+
+## Related Vignettes
+
+- `backend-architecture`: provider/dispatch implementation details.
+- `abstract-cleaning`: cleaning rules and examples in depth.
+- `tei-server-operations`: local TEI operational handling.
+- `simplestart`: quick start usage path.
+
+## Summary
+
+`openalexVectorComp` is a composable embedding-and-scoring pipeline
+package:
+
+- backend-neutral for embeddings,
+- deterministic for resume and reproducibility,
+- pluggable for text cleaning,
+- explicit for distance and calibration decisions.
+
+Use this overview as the map, then dive into the specialized vignettes
+for implementation-level details.
