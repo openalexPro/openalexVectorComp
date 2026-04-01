@@ -6,7 +6,7 @@ embeddings as a numeric matrix.
 ## Usage
 
 ``` r
-embed_texts(texts, backend = embedding_backend_config())
+embed_texts(texts, backend = backend_config())
 ```
 
 ## Arguments
@@ -19,7 +19,7 @@ embed_texts(texts, backend = embedding_backend_config())
 - backend:
 
   Backend configuration created with
-  [`embedding_backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_config.md).
+  [`backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/backend_config.md).
 
 ## Value
 

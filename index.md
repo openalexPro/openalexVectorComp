@@ -1,14 +1,15 @@
 # openalexVectorComp
 
-**Auto-tagging via TEI embeddings + Qdrant**, implemented in R.
+**Embedding of Corpora**, implemented in R.
 
 ## Version
 
-Current development version: **0.1.4**.
+Current development version: **0.3.0**.
 
 - Embeddings served by **TEI** (Text Embeddings Inference; Hugging
   Face).
-- Vector search by **Qdrant**.
+- Embeddings via a **backend-neutral interface** (`hf`, `openai`,
+  `tei`).
 - Scoring: **prototype cosine-distance** + **reference-area ridge
   score**
   ([`distance_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/distance_ridge.md) +
@@ -16,7 +17,7 @@ Current development version: **0.1.4**.
   threshold calibration.
 - Works great with DuckDB/Arrow pipelines.
 
-## 0.1.4 Highlights
+## 0.3.0 Highlights
 
 - Demo defaults now use a shared structure:
   - `demos/openalex`
@@ -30,9 +31,9 @@ Current development version: **0.1.4**.
 
 ## Development Continuity
 
-See `inst/DEVELOPMENT_CONTINUITY.md` for design principles,
-architectural decisions, and the required pre-commit update checklist
-that keeps development context continuous for both humans and AI agents.
+See `DEVELOPMENT_CONTINUITY.md` for design principles, architectural
+decisions, and the required pre-commit update checklist that keeps
+development context continuous for both humans and AI agents.
 
 ## Install (local)
 
@@ -45,17 +46,14 @@ Or build & install from the zip you downloaded.
 
 ## Runtime dependencies
 
-- TEI server running (CPU is fine):
+- For `provider = "tei"`:
 
   ``` bash
   text-embeddings-router --model BAAI/bge-small-en-v1.5 --port 8080
   ```
 
-- Qdrant server (optional if you only use modeling; required for ANN
-  search):
-
-  - Binary: `./qdrant`
-  - Docker: `docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant`
+- For hosted embedding backends (`provider = "hf"` or `"openai"`), set
+  `OVC_API_TOKEN` in your environment.
 
 ## Vignettes
 
@@ -71,7 +69,7 @@ Create a full demo in `getwd()/demos/openalex` (fixtures + Quarto
 analysis):
 
 ``` r
-run_demo_openalex_quarto(
+run_demo_openalex(
   demo_dir = file.path(getwd(), "demos", "openalex"),
   render = FALSE
 )
@@ -85,7 +83,7 @@ artifacts are written under `demo_dir/project/`.
 OpenAI-specific demo (same structure, explicit API key argument):
 
 ``` r
-run_demo_openai_quarto(
+run_demo_openai(
   api_key = Sys.getenv("OVC_API_TOKEN"),
   demo_dir = file.path(getwd(), "demos", "openai"),
   render = FALSE
@@ -93,11 +91,11 @@ run_demo_openai_quarto(
 ```
 
 The OpenAI demo now follows a two-phase async flow: 1.
-`run_demo_openai_quarto(..., render = TRUE)` submits batch and
-continues. 2. If batch is still pending, finalize later:
+`run_demo_openai(..., render = TRUE)` submits batch and continues. 2. If
+batch is still pending, finalize later:
 
 ``` r
-finalize_demo_openai_batch(
+demo_finalize_openai_batch(
   demo_dir = file.path(getwd(), "demos", "openai"),
   api_key = Sys.getenv("OVC_API_TOKEN"),
   label = "corpus_batch"
@@ -112,26 +110,26 @@ This writes comparison outputs to:
 For long-running OpenAI embedding jobs, use the async batch helpers:
 
 ``` r
-backend <- embedding_backend_config(
+backend <- backend_config(
   provider = "openai",
   model = "text-embedding-3-small"
 )
 
 # 1) submit and return immediately
-embed_corpus_submit_openai_batch(
+batch_submit_openai(
   project_dir = "my_project",
   backend = backend,
   label = "corpus"
 )
 
 # 2) check job status
-embed_corpus_status_openai_batch(
+batch_status_openai(
   project_dir = "my_project",
   label = "corpus"
 )
 
 # 3) collect completed jobs and write canonical embeddings parquet
-embed_corpus_collect_openai_batch(
+batch_collect_openai(
   project_dir = "my_project",
   backend = backend,
   label = "corpus"

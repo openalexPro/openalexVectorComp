@@ -47,11 +47,11 @@ The package API is organized into these groups.
 
 ### 1) Embedding backend abstraction
 
-- [`embedding_backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_config.md)
-- [`embedding_backend_info()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_info.md)
-- [`embedding_backend_embed_texts()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_embed_texts.md)
-- [`embedding_backend_read()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_read.md)
-- [`embedding_backend_save()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_save.md)
+- [`backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/backend_config.md)
+- [`backend_info()`](https://rkrug.github.io/openalexVectorComp/reference/backend_info.md)
+- [`backend_embed_texts()`](https://rkrug.github.io/openalexVectorComp/reference/backend_embed_texts.md)
+- [`backend_read()`](https://rkrug.github.io/openalexVectorComp/reference/backend_read.md)
+- [`backend_save()`](https://rkrug.github.io/openalexVectorComp/reference/backend_save.md)
 - [`embed_texts()`](https://rkrug.github.io/openalexVectorComp/reference/embed_texts.md)
 
 These functions isolate provider-specific details and expose a stable
@@ -118,7 +118,7 @@ flowchart TB
 Typical workflow for one project:
 
 1.  Configure backend
-    ([`embedding_backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_config.md)).
+    ([`backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/backend_config.md)).
 2.  Embed corpus
     ([`embed_corpus()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus.md)).
 3.  Compute distance signal
@@ -147,7 +147,7 @@ sequenceDiagram
   participant SR as score_ridge
   participant CT as calibrate_threshold
 
-  U->>BC: embedding_backend_config(...)
+  U->>BC: backend_config(...)
   U->>EC: embed_corpus(project_dir, backend)
   EC->>ES: write embeddings parquet
   U->>DP: distance_reference_cosine(...)
@@ -245,7 +245,7 @@ flowchart LR
 ``` r
 library(openalexVectorComp)
 
-backend <- embedding_backend_config(
+backend <- backend_config(
   provider = "hf",
   model = "BAAI/bge-small-en-v1.5",
   max_batch_size = 64

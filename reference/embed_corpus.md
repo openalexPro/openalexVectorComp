@@ -9,7 +9,7 @@ calls the configured embedding backend, and writes Parquet batch files.
 ``` r
 embed_corpus(
   project_dir = NULL,
-  backend = embedding_backend_config(),
+  backend = backend_config(),
   corpus_name = "corpus",
   batch_size = 5000,
   delete_existing = FALSE,
@@ -32,7 +32,7 @@ embed_corpus(
 - backend:
 
   Backend configuration created with
-  [`embedding_backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_config.md).
+  [`backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/backend_config.md).
 
 - corpus_name:
 

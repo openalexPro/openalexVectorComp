@@ -17,9 +17,9 @@ The focus is implementation details, not end-user quickstart usage.
 Backend logic is split into one core file and provider-specific files:
 
 - `R/embed_backend_core.R`:
-  - [`embedding_backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_config.md)
-  - [`embedding_backend_info()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_info.md)
-  - [`embedding_backend_embed_texts()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_embed_texts.md)
+  - [`backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/backend_config.md)
+  - [`backend_info()`](https://rkrug.github.io/openalexVectorComp/reference/backend_info.md)
+  - [`backend_embed_texts()`](https://rkrug.github.io/openalexVectorComp/reference/backend_embed_texts.md)
   - shared helpers (`.embedding_with_retry()`,
     `.embedding_request_base()`, …)
 - `R/embed_backend_hf.R`:
@@ -36,8 +36,8 @@ Backend logic is split into one core file and provider-specific files:
 
 ``` mermaid
 flowchart TD
-  A[embedding_backend_config] --> B[embedding_backend_info]
-  A --> C[embedding_backend_embed_texts]
+  A[backend_config] --> B[backend_info]
+  A --> C[backend_embed_texts]
   C --> D{provider}
   D -->|hf| E[.embedding_embed_texts_hf]
   D -->|openai| F[.embedding_embed_texts_openai]
@@ -63,13 +63,13 @@ sequenceDiagram
   participant FS as parquet_output
 
   User->>embed_corpus: embed_corpus(project_dir, backend=...)
-  embed_corpus->>Core: embedding_backend_config(...) (if backend is NULL)
-  embed_corpus->>Core: embedding_backend_info(backend)
+  embed_corpus->>Core: backend_config(...) (if backend is NULL)
+  embed_corpus->>Core: backend_info(backend)
   embed_corpus->>FS: Load existing hashes (id + text_hash)
   loop Arrow scan batches
     embed_corpus->>embed_corpus: Build canonical text
     embed_corpus->>embed_corpus: Filter unchanged rows
-    embed_corpus->>Core: embedding_backend_embed_texts(texts, backend)
+    embed_corpus->>Core: backend_embed_texts(texts, backend)
     Core->>Provider: provider dispatch
     Provider->>API: batched HTTP requests
     API-->>Provider: vectors
@@ -166,14 +166,14 @@ This keeps auth handling provider-agnostic.
 ``` r
 library(openalexVectorComp)
 
-backend <- embedding_backend_config(
+backend <- backend_config(
   provider = "hf",
   model = "BAAI/bge-small-en-v1.5",
   max_batch_size = 64
 )
 
-info <- embedding_backend_info(backend)
-emb <- embedding_backend_embed_texts(
+info <- backend_info(backend)
+emb <- backend_embed_texts(
   texts = c("Title: A\nAbstract: B", "Title: C\nAbstract: D"),
   backend = backend
 )
@@ -183,7 +183,7 @@ dim(emb)
 ### 2) OpenAI backend
 
 ``` r
-backend <- embedding_backend_config(
+backend <- backend_config(
   provider = "openai",
   model = "text-embedding-3-small",
   max_batch_size = 256
@@ -193,7 +193,7 @@ backend <- embedding_backend_config(
 ### 3) Local TEI backend
 
 ``` r
-backend <- embedding_backend_config(
+backend <- backend_config(
   provider = "tei",
   base_url = "http://localhost:3000",
   max_batch_size = 128
@@ -207,18 +207,18 @@ Assume new provider name `"acme"`.
 ### Step 1: add dispatch entry in core
 
 In
-[`embedding_backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_config.md):
+[`backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/backend_config.md):
 
 - include `"acme"` in `provider = c(...)`
 - define provider defaults in `switch(provider, ...)`
 
 In
-[`embedding_backend_info()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_info.md):
+[`backend_info()`](https://rkrug.github.io/openalexVectorComp/reference/backend_info.md):
 
 - add branch: `acme = .embedding_info_acme(backend)`
 
 In
-[`embedding_backend_embed_texts()`](https://rkrug.github.io/openalexVectorComp/reference/embedding_backend_embed_texts.md):
+[`backend_embed_texts()`](https://rkrug.github.io/openalexVectorComp/reference/backend_embed_texts.md):
 
 - add branch: `acme = .embedding_embed_texts_acme(texts, backend)`
 

@@ -54,7 +54,7 @@ This example uses the demo fixture project under
 ``` r
 embed_corpus(
   project_dir = "inst/ovc_demo/project",
-  backend = embedding_backend_config(
+  backend = backend_config(
     provider = "tei",
     base_url = "http://localhost:3000"
   ),
@@ -65,7 +65,7 @@ embed_corpus(
 
 embed_corpus(
   project_dir = "inst/ovc_demo/project",
-  backend = embedding_backend_config(
+  backend = backend_config(
     provider = "tei",
     base_url = "http://localhost:3000"
   ),
@@ -135,7 +135,7 @@ ridge_score_dir <- score_ridge(
   - Install the binary and ensure it is on PATH.
 - Port in use:
   - Start TEI on another port and update
-    `backend = embedding_backend_config(provider = "tei", base_url = "http://localhost:3001")`.
+    `backend = backend_config(provider = "tei", base_url = "http://localhost:3001")`.
 - Slow embedding or timeouts:
   - Reduce `batch_size`, and verify the server’s `/info` limits.
 

@@ -23,7 +23,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">openalexVectorComp</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -44,6 +44,7 @@
     <li><a class="dropdown-item" href="../articles/tei-server-operations.html">tei-server-operations</a></li>
   </ul>
 </li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -145,11 +146,11 @@
 <section class="level2"><h3 id="embedding-backend-abstraction">1) Embedding backend abstraction<a class="anchor" aria-label="anchor" href="#embedding-backend-abstraction"></a>
 </h3>
 <ul>
-<li><code><a href="../reference/embedding_backend_config.html">embedding_backend_config()</a></code></li>
-<li><code><a href="../reference/embedding_backend_info.html">embedding_backend_info()</a></code></li>
-<li><code><a href="../reference/embedding_backend_embed_texts.html">embedding_backend_embed_texts()</a></code></li>
-<li><code><a href="../reference/embedding_backend_read.html">embedding_backend_read()</a></code></li>
-<li><code><a href="../reference/embedding_backend_save.html">embedding_backend_save()</a></code></li>
+<li><code><a href="../reference/backend_config.html">backend_config()</a></code></li>
+<li><code><a href="../reference/backend_info.html">backend_info()</a></code></li>
+<li><code><a href="../reference/backend_embed_texts.html">backend_embed_texts()</a></code></li>
+<li><code><a href="../reference/backend_read.html">backend_read()</a></code></li>
+<li><code><a href="../reference/backend_save.html">backend_save()</a></code></li>
 <li><code><a href="../reference/embed_texts.html">embed_texts()</a></code></li>
 </ul>
 <p>These functions isolate provider-specific details and expose a stable interface.</p>
@@ -219,7 +220,7 @@
 </h2>
 <p>Typical workflow for one project:</p>
 <ol type="1">
-<li>Configure backend (<code><a href="../reference/embedding_backend_config.html">embedding_backend_config()</a></code>).</li>
+<li>Configure backend (<code><a href="../reference/backend_config.html">backend_config()</a></code>).</li>
 <li>Embed corpus (<code><a href="../reference/embed_corpus.html">embed_corpus()</a></code>).</li>
 <li>Compute distance signal (<code><a href="../reference/distance_reference_cosine.html">distance_reference_cosine()</a></code> and/or <code><a href="../reference/distance_ridge.html">distance_ridge()</a></code>), then score (e.g. <code><a href="../reference/score_reference_cosine.html">score_reference_cosine()</a></code>, <code><a href="../reference/score_ridge.html">score_ridge()</a></code>).</li>
 <li>Calibrate operating threshold (<code><a href="../reference/calibrate_threshold.html">calibrate_threshold()</a></code>).</li>
@@ -242,7 +243,7 @@
   participant SR as score_ridge
   participant CT as calibrate_threshold
 
-  U-&gt;&gt;BC: embedding_backend_config(...)
+  U-&gt;&gt;BC: backend_config(...)
   U-&gt;&gt;EC: embed_corpus(project_dir, backend)
   EC-&gt;&gt;ES: write embeddings parquet
   U-&gt;&gt;DP: distance_reference_cosine(...)
@@ -365,7 +366,7 @@
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/rkrug/openalexVectorComp" class="external-link">openalexVectorComp</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">backend</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/embedding_backend_config.html">embedding_backend_config</a></span><span class="op">(</span></span>
+<span><span class="va">backend</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/backend_config.html">backend_config</a></span><span class="op">(</span></span>
 <span>  provider <span class="op">=</span> <span class="st">"hf"</span>,</span>
 <span>  model <span class="op">=</span> <span class="st">"BAAI/bge-small-en-v1.5"</span>,</span>
 <span>  max_batch_size <span class="op">=</span> <span class="fl">64</span></span>

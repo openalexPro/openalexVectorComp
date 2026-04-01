@@ -8,9 +8,9 @@ then collect results later.
 
 In `openalexVectorComp`, this is implemented as three explicit steps:
 
-1.  [`embed_corpus_submit_openai_batch()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus_submit_openai_batch.md)
-2.  [`embed_corpus_status_openai_batch()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus_status_openai_batch.md)
-3.  [`embed_corpus_collect_openai_batch()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus_collect_openai_batch.md)
+1.  [`batch_submit_openai()`](https://rkrug.github.io/openalexVectorComp/reference/batch_submit_openai.md)
+2.  [`batch_status_openai()`](https://rkrug.github.io/openalexVectorComp/reference/batch_status_openai.md)
+3.  [`batch_collect_openai()`](https://rkrug.github.io/openalexVectorComp/reference/batch_collect_openai.md)
 
 This design is operationally safer than waiting for one long blocking
 process.
@@ -45,7 +45,7 @@ flowchart TD
 ``` r
 library(openalexVectorComp)
 
-backend <- embedding_backend_config(
+backend <- backend_config(
   provider = "openai",
   model = "text-embedding-3-small"
 )
@@ -55,12 +55,12 @@ Sys.getenv("OVC_API_TOKEN")
 
 ## Step 1: Submit jobs
 
-[`embed_corpus_submit_openai_batch()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus_submit_openai_batch.md)
+[`batch_submit_openai()`](https://rkrug.github.io/openalexVectorComp/reference/batch_submit_openai.md)
 preprocesses rows, applies skip logic, performs preflight checks,
 auto-splits by limits, then submits jobs.
 
 ``` r
-submit_info <- embed_corpus_submit_openai_batch(
+submit_info <- batch_submit_openai(
   project_dir = "my_project",
   backend = backend,
   corpus_name = "corpus",
@@ -97,11 +97,11 @@ Before any remote submission:
 ## Step 2: Check status
 
 Use
-[`embed_corpus_status_openai_batch()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus_status_openai_batch.md)
+[`batch_status_openai()`](https://rkrug.github.io/openalexVectorComp/reference/batch_status_openai.md)
 to inspect queued jobs.
 
 ``` r
-status_df <- embed_corpus_status_openai_batch(
+status_df <- batch_status_openai(
   project_dir = "my_project",
   label = "corpus",
   refresh_remote = TRUE
@@ -126,12 +126,12 @@ Only `completed` jobs are eligible for collection.
 
 ## Step 3: Collect completed jobs
 
-[`embed_corpus_collect_openai_batch()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus_collect_openai_batch.md)
+[`batch_collect_openai()`](https://rkrug.github.io/openalexVectorComp/reference/batch_collect_openai.md)
 downloads completed outputs, joins by `custom_id`, validates mapping,
 and writes canonical embeddings parquet.
 
 ``` r
-collect_info <- embed_corpus_collect_openai_batch(
+collect_info <- batch_collect_openai(
   project_dir = "my_project",
   backend = backend,
   label = "corpus",
