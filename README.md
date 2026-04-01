@@ -26,7 +26,7 @@ Current development version: **0.2.0**.
 
 ## Development Continuity
 
-See `inst/DEVELOPMENT_CONTINUITY.md` for design principles, architectural
+See `DEVELOPMENT_CONTINUITY.md` for design principles, architectural
 decisions, and the required pre-commit update checklist that keeps development
 context continuous for both humans and AI agents.
 

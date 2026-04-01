@@ -1,6 +1,7 @@
 ^vignettes/\.quarto$
 ^vignettes/.*_files$
 ^IMPLEMENTATION_NOTES\.md$
+^DEVELOPMENT_CONTINUITY\.md$
 ^doc$
 ^Meta$
 ^inst/ASR$
