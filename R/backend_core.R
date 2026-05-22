@@ -70,6 +70,43 @@ backend_config <- function(
   cfg
 }
 
+#' Backend preset for a local TEI server serving the merged SPECTER2 proximity model
+#'
+#' Convenience wrapper around [backend_config()] for a SPECTER2 setup served by
+#' a local TEI (text-embeddings-inference) server. The model itself must be
+#' prepared and started externally (see `inst/scripts/prepare_specter2_merged.py`
+#' and `inst/scripts/start_tei_specter2.sh`, and the `specter2-setup` vignette).
+#'
+#' The `model` argument is metadata only and is recorded in `embed_model.yaml`
+#' and parquet partition paths; TEI itself loads whichever model it was started
+#' with.
+#'
+#' @param port Port that TEI is listening on. Defaults to `8080`.
+#' @param host Host for TEI. Defaults to `"localhost"`.
+#' @param model Provenance label for the served model. Defaults to
+#'   `"allenai/specter2_proximity_merged"`.
+#'
+#' @return A backend configuration list compatible with [backend_config()].
+#' @export
+backend_specter2_tei <- function(
+  port = 8080L,
+  host = "localhost",
+  model = "allenai/specter2_proximity_merged"
+) {
+  port <- as.integer(port)
+  if (!is.finite(port) || port <= 0L) {
+    stop("`port` must be a positive integer.")
+  }
+  if (!is.character(host) || length(host) != 1L || !nzchar(host)) {
+    stop("`host` must be a non-empty string.")
+  }
+  backend_config(
+    provider = "tei",
+    tei_url  = sprintf("http://%s:%d/embed", host, port),
+    model    = model
+  )
+}
+
 #' Get embedding backend model/service information
 #'
 #' Returns normalized backend metadata used by the pipeline.

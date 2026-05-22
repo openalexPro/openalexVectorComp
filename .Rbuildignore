@@ -2,6 +2,7 @@
 ^vignettes/.*_files$
 ^IMPLEMENTATION_NOTES\.md$
 ^DEVELOPMENT_CONTINUITY\.md$
+^NOTES\.md$
 ^doc$
 ^Meta$
 ^inst/ASR$

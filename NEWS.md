@@ -1,5 +1,15 @@
 # openalexVectorComp news
 
+## 0.3.3
+
+### New Features
+
+- Added `backend_specter2_tei()` convenience helper for serving the merged
+  SPECTER2 proximity model via a local TEI server.
+- Added `specter2-setup` vignette and `inst/scripts/prepare_specter2_merged.py`
+  + `inst/scripts/start_tei_specter2.sh` for one-time model preparation and
+  serving.
+
 ## 0.3.0
 
 ### New Features

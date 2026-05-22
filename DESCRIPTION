@@ -1,7 +1,7 @@
 Package: openalexVectorComp
 Type: Package
 Title: Embedding Vectorization and Distance-Based Scoring Workflows
-Version: 0.3.2
+Version: 0.3.3
 Authors@R: c(
     person(given = "Rainer M", family = "Krug", role = c("aut", "cre"), email = "Rainer@krugs.de"),
     person(given = "ChatGPT", family = "Assistant", role = "ctb")
@@ -43,3 +43,4 @@ URL: https://github.com/openalexPro/openalexVectorComp, https://openalexpro.gith
 BugReports: https://github.com/openalexPro/openalexVectorComp/issues
 RoxygenNote: 7.3.3
 Roxygen: list(markdown = TRUE)
+Config/roxygen2/version: 8.0.0
