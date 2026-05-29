@@ -13,7 +13,7 @@ jobs:
   r-cmd-check:
     name: R CMD check (${{ matrix.config.os }}, R ${{ matrix.config.r }})
     runs-on: ${{ matrix.config.os }}
-    timeout-minutes: 60
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
