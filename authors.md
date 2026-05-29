@@ -2,7 +2,7 @@
 
 ## Authors
 
-- **Rainer Krug**. Author, maintainer.
+- **Rainer M Krug**. Author, maintainer.
 
 - **ChatGPT Assistant**. Contributor.
 
@@ -17,7 +17,7 @@ Distance-Based Scoring Workflows*. R package version 0.3.0,
 
     @Manual{,
       title = {openalexVectorComp: Embedding Vectorization and Distance-Based Scoring Workflows},
-      author = {Rainer Krug},
+      author = {Rainer M Krug},
       year = {2026},
       note = {R package version 0.3.0},
       url = {https://github.com/openalexPro/openalexVectorComp},
