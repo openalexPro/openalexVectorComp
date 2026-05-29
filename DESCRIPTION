@@ -1,7 +1,7 @@
 Package: openalexVectorComp
 Type: Package
 Title: Embedding Vectorization and Distance-Based Scoring Workflows
-Version: 0.3.1
+Version: 0.3.2
 Authors@R: c(
     person(given = "Rainer M", family = "Krug", role = c("aut", "cre"), email = "Rainer@krugs.de"),
     person(given = "ChatGPT", family = "Assistant", role = "ctb")
