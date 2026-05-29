@@ -39,7 +39,7 @@ Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 VignetteBuilder: knitr, quarto
-URL: https://github.com/openalexPro/openalexVectorComp, https://openalexpro.github.io/openalexVectorComp/
+URL: https://github.com/openalexPro/openalexVectorComp, https://openalexpro.github.io/openalexVectorComp/, https://doi.org/10.5281/zenodo.19607514
 BugReports: https://github.com/openalexPro/openalexVectorComp/issues
 RoxygenNote: 7.3.3
 Roxygen: list(markdown = TRUE)
