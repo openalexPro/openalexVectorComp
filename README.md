@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19607514.svg)](https://doi.org/10.5281/zenodo.19607514)
+
 # openalexVectorComp
 
 **Embedding of Corpora**, implemented in R.
