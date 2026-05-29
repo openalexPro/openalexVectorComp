@@ -1,7 +1,7 @@
 # Create and optionally run an OpenAI-based demo project via Quarto
 
 Uses the same demo structure as
-[`run_demo_openalex()`](https://rkrug.github.io/openalexVectorComp/reference/run_demo_openalex.md),
+[`run_demo_openalex()`](https://openalexpro.github.io/openalexVectorComp/reference/run_demo_openalex.md),
 but configures an OpenAI backend and requires an explicit API key
 argument. The key is set in `OVC_API_TOKEN` for the duration of the
 call.

@@ -1,7 +1,7 @@
 # Plot embeddings via PCA, colored by arbitrary labels
 
 Reads an embeddings Parquet dataset (produced by
-[`embed_corpus()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus.md))
+[`embed_corpus()`](https://openalexpro.github.io/openalexVectorComp/reference/embed_corpus.md))
 with columns `id` and `V1..Vd`, computes a PCA on the embedding matrix,
 and returns a scatter plot of the first two principal components. Points
 are colored by labels provided via `labels`. Rows not found in `labels`

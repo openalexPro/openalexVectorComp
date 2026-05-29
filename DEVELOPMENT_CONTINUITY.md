@@ -43,23 +43,23 @@ interfaces, or workflow.
 Core flow: 1. Prepare input text (`embed_corpus(..., dry_run = TRUE)`
 optional). 2. Generate embeddings (direct or OpenAI batch). 3. Compute
 distances: - reference cosine matrix
-([`distance_reference_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/distance_reference_cosine.md)), -
+([`distance_reference_cosine()`](https://openalexpro.github.io/openalexVectorComp/reference/distance_reference_cosine.md)), -
 reference-area distance
-([`distance_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/distance_ridge.md)).
+([`distance_ridge()`](https://openalexpro.github.io/openalexVectorComp/reference/distance_ridge.md)).
 4. Convert to scores: -
-[`score_reference_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/score_reference_cosine.md), -
-[`score_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/score_ridge.md).
+[`score_reference_cosine()`](https://openalexpro.github.io/openalexVectorComp/reference/score_reference_cosine.md), -
+[`score_ridge()`](https://openalexpro.github.io/openalexVectorComp/reference/score_ridge.md).
 5. Optional threshold calibration
-([`calibrate_threshold()`](https://rkrug.github.io/openalexVectorComp/reference/calibrate_threshold.md)).
+([`calibrate_threshold()`](https://openalexpro.github.io/openalexVectorComp/reference/calibrate_threshold.md)).
 
 OpenAI batch flow: 1. Submit
-([`batch_submit_openai()`](https://rkrug.github.io/openalexVectorComp/reference/batch_submit_openai.md)).
+([`batch_submit_openai()`](https://openalexpro.github.io/openalexVectorComp/reference/batch_submit_openai.md)).
 2. Refresh status
-([`batch_status_openai()`](https://rkrug.github.io/openalexVectorComp/reference/batch_status_openai.md)).
+([`batch_status_openai()`](https://openalexpro.github.io/openalexVectorComp/reference/batch_status_openai.md)).
 3. Collect completed jobs
-([`batch_collect_openai()`](https://rkrug.github.io/openalexVectorComp/reference/batch_collect_openai.md)).
+([`batch_collect_openai()`](https://openalexpro.github.io/openalexVectorComp/reference/batch_collect_openai.md)).
 4. Demo convenience wrapper: -
-[`demo_finalize_openai_batch()`](https://rkrug.github.io/openalexVectorComp/reference/demo_finalize_openai_batch.md)
+[`demo_finalize_openai_batch()`](https://openalexpro.github.io/openalexVectorComp/reference/demo_finalize_openai_batch.md)
 = status + collect + direct-vs-batch compare.
 
 ## 3. Current Demo Conventions (0.3.0)
@@ -85,7 +85,7 @@ considered: - Impact: - Follow-up tasks:
 - Scope: OpenAI demo and batch comparison robustness
 
 - Decision: Implement two-phase OpenAI batch demo flow with
-  [`demo_finalize_openai_batch()`](https://rkrug.github.io/openalexVectorComp/reference/demo_finalize_openai_batch.md).
+  [`demo_finalize_openai_batch()`](https://openalexpro.github.io/openalexVectorComp/reference/demo_finalize_openai_batch.md).
 
 - Why: Batch completion is asynchronous; render should not fail on
   pending jobs.

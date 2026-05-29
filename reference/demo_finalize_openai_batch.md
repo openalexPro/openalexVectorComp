@@ -22,9 +22,9 @@ demo_finalize_openai_batch(
 - demo_dir:
 
   Demo workspace directory created by
-  [`run_demo_openai()`](https://rkrug.github.io/openalexVectorComp/reference/run_demo_openai.md)
+  [`run_demo_openai()`](https://openalexpro.github.io/openalexVectorComp/reference/run_demo_openai.md)
   or
-  [`run_demo_openalex()`](https://rkrug.github.io/openalexVectorComp/reference/run_demo_openalex.md).
+  [`run_demo_openalex()`](https://openalexpro.github.io/openalexVectorComp/reference/run_demo_openalex.md).
 
 - api_key:
 
@@ -38,7 +38,7 @@ demo_finalize_openai_batch(
 - refresh_remote:
 
   Logical; forwarded to
-  [`batch_status_openai()`](https://rkrug.github.io/openalexVectorComp/reference/batch_status_openai.md).
+  [`batch_status_openai()`](https://openalexpro.github.io/openalexVectorComp/reference/batch_status_openai.md).
 
 - verbose:
 

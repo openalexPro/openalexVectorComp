@@ -18,7 +18,7 @@ final text that is sent to the embedding backend.
 
 ## Where Cleaning Happens
 
-[`embed_corpus()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus.md)
+[`embed_corpus()`](https://openalexpro.github.io/openalexVectorComp/reference/embed_corpus.md)
 now accepts a pluggable preprocessor:
 
 - `text_preprocessor` (function)
@@ -27,12 +27,14 @@ now accepts a pluggable preprocessor:
 By default:
 
 ``` r
+
 text_preprocessor = clean_abstract_for_embedding
 ```
 
 So this call:
 
 ``` r
+
 embed_corpus(project_dir = "my_project")
 ```
 
@@ -61,7 +63,7 @@ By default it also returns provenance columns:
 - `discard_reason` (character)
 - `cleaning_mode` (`lenient`/`balanced`/`strict`)
 
-[`embed_corpus()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus.md)
+[`embed_corpus()`](https://openalexpro.github.io/openalexVectorComp/reference/embed_corpus.md)
 validates this contract and fails early if violated.
 
 ## Cleaning Pipeline (Step by Step)
@@ -96,7 +98,7 @@ The default cleaner applies a rule-based sequence:
 7.  Hash final text:
     - `text_hash = digest(text, algo = "xxhash64")`
     - used by
-      [`embed_corpus()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus.md)
+      [`embed_corpus()`](https://openalexpro.github.io/openalexVectorComp/reference/embed_corpus.md)
       resume logic (`id + text_hash`)
 
 ### Cleaning Flow Diagram
@@ -164,6 +166,7 @@ You can override thresholds explicitly via:
 ## Example: Default Cleaning
 
 ``` r
+
 library(openalexVectorComp)
 
 df <- data.frame(
@@ -200,6 +203,7 @@ The following example demonstrates three outcomes in one run:
 - removed (`discard` policy)
 
 ``` r
+
 examples <- data.frame(
   id = c("A1", "A2", "A3", "A4"),
   title = c(
@@ -253,6 +257,7 @@ Interpretation:
 ## Example: Change Missing-Abstract Policy
 
 ``` r
+
 drop_missing <- clean_abstract_for_embedding(
   df,
   no_abstract_policy = "discard"
@@ -266,6 +271,7 @@ embedding input entirely.
 ## Example: Use a Stricter Cleaning Configuration
 
 ``` r
+
 strict_clean <- clean_abstract_for_embedding(
   df,
   mode = "strict",
@@ -283,6 +289,7 @@ You can override detection patterns for
 placeholders/boilerplate/artifacts:
 
 ``` r
+
 custom_clean <- clean_abstract_for_embedding(
   df,
   placeholder_patterns = c("abstract unavailable", "^none$"),
@@ -296,6 +303,7 @@ custom_clean <- clean_abstract_for_embedding(
 Default integration:
 
 ``` r
+
 embed_corpus(
   project_dir = "my_project",
   cleaner_args = list(
@@ -308,6 +316,7 @@ embed_corpus(
 Custom preprocessor integration:
 
 ``` r
+
 my_preprocessor <- function(df, suffix = "") {
   text <- paste0("Title: ", df$title, " ", suffix)
   data.frame(
@@ -334,7 +343,7 @@ embed_corpus(
 
 ## Preprocessor Validation in `embed_corpus()`
 
-[`embed_corpus()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus.md)
+[`embed_corpus()`](https://openalexpro.github.io/openalexVectorComp/reference/embed_corpus.md)
 validates custom preprocessor output:
 
 - must return a data frame
@@ -369,7 +378,7 @@ downstream relevance scoring.
 
 ## Summary
 
-[`clean_abstract_for_embedding()`](https://rkrug.github.io/openalexVectorComp/reference/clean_abstract_for_embedding.md)
+[`clean_abstract_for_embedding()`](https://openalexpro.github.io/openalexVectorComp/reference/clean_abstract_for_embedding.md)
 provides a practical, auditable, and pluggable cleaning layer for
 embedding pipelines:
 

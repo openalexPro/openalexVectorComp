@@ -52,6 +52,7 @@ This example uses the demo fixture project under
 - `reference_corpus/reference_small.parquet`
 
 ``` r
+
 embed_corpus(
   project_dir = "inst/ovc_demo/project",
   backend = backend_config(
@@ -80,7 +81,7 @@ embed_corpus(
 
 Prototype distances are computed pairwise between all vectors in a
 reference label partition and all vectors in a corpus label partition.
-[`distance_reference_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/distance_reference_cosine.md)
+[`distance_reference_cosine()`](https://openalexpro.github.io/openalexVectorComp/reference/distance_reference_cosine.md)
 writes one file `pairwise-cosine.parquet` with:
 
 - rows: corpus ids plus one `centroid` row (corpus centroid)
@@ -88,6 +89,7 @@ writes one file `pairwise-cosine.parquet` with:
 - values: cosine distances only
 
 ``` r
+
 distance_reference_cosine(
   project_dir = "inst/ovc_demo/project",
   embeddings_dir = "model_id=BAAI_bge-small-en-v1.5",
@@ -110,14 +112,15 @@ score_reference_cosine(
 
 ## Compute ridge distances and scores
 
-[`distance_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/distance_ridge.md)
+[`distance_ridge()`](https://openalexpro.github.io/openalexVectorComp/reference/distance_ridge.md)
 models the `reference` label as an embedding area (centroid +
 covariance) and computes Mahalanobis-style `area_distance` for all
 `corpus` rows. Use
-[`score_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/score_ridge.md)
+[`score_ridge()`](https://openalexpro.github.io/openalexVectorComp/reference/score_ridge.md)
 to convert distances to `relevance_score`.
 
 ``` r
+
 ridge_dist_dir <- distance_ridge(
   project_dir = "inst/ovc_demo/project",
   reference_label = "reference",
@@ -142,5 +145,6 @@ ridge_score_dir <- score_ridge(
 ## Reproducibility
 
 ``` r
+
 sessionInfo()
 ```

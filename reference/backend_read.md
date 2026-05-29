@@ -2,7 +2,7 @@
 
 Reads backend configuration from a YAML file and returns a normalized
 object in the same format as
-[`backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/backend_config.md).
+[`backend_config()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_config.md).
 
 ## Usage
 
@@ -19,7 +19,7 @@ backend_read(fn = "embed_model.yaml")
 ## Value
 
 A backend configuration list compatible with
-[`backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/backend_config.md).
+[`backend_config()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_config.md).
 
 ## Details
 

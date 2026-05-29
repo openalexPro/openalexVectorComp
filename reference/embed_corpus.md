@@ -32,7 +32,7 @@ embed_corpus(
 - backend:
 
   Backend configuration created with
-  [`backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/backend_config.md).
+  [`backend_config()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_config.md).
 
 - corpus_name:
 
@@ -53,7 +53,7 @@ embed_corpus(
 
   Function that prepares embedding text from a batch data frame and
   returns at least columns `id`, `text`, `text_hash`. Defaults to
-  [`clean_abstract_for_embedding()`](https://rkrug.github.io/openalexVectorComp/reference/clean_abstract_for_embedding.md).
+  [`clean_abstract_for_embedding()`](https://openalexpro.github.io/openalexVectorComp/reference/clean_abstract_for_embedding.md).
 
 - cleaner_args:
 

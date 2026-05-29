@@ -33,7 +33,7 @@ batch_submit_openai(
 - backend:
 
   Backend configuration from
-  [`backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/backend_config.md).
+  [`backend_config()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_config.md).
   Must use `provider = "openai"`.
 
 - corpus_name:

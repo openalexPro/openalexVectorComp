@@ -50,6 +50,7 @@ curl -s -X POST http://localhost:3000/embed \
 ## Use TEI endpoint in package
 
 ``` r
+
 library(openalexVectorComp)
 
 backend <- backend_config(
@@ -99,12 +100,12 @@ Use another port and update backend config accordingly.
 
 - Check `curl` smoke test directly against `/embed`.
 - Reduce `max_batch_size` in
-  [`backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/backend_config.md).
+  [`backend_config()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_config.md).
 
 ### Slow throughput
 
 - Increase TEI resources.
 - Use larger `batch_size` in
-  [`embed_corpus()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus.md)
+  [`embed_corpus()`](https://openalexpro.github.io/openalexVectorComp/reference/embed_corpus.md)
   where feasible.
 - Verify server-side limits from `/info`.

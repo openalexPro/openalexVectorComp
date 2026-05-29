@@ -35,7 +35,7 @@ run_demo_openalex(
 - backend:
 
   Optional backend config from
-  [`backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/backend_config.md).
+  [`backend_config()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_config.md).
   If `NULL`, defaults to Hugging Face (`provider = "hf"`, model
   `"BAAI/bge-small-en-v1.5"`).
 

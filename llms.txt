@@ -12,8 +12,8 @@ Current development version: **0.3.0**.
   `tei`).
 - Scoring: **prototype cosine-distance** + **reference-area ridge
   score**
-  ([`distance_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/distance_ridge.md) +
-  [`score_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/score_ridge.md)) +
+  ([`distance_ridge()`](https://openalexpro.github.io/openalexVectorComp/reference/distance_ridge.md) +
+  [`score_ridge()`](https://openalexpro.github.io/openalexVectorComp/reference/score_ridge.md)) +
   threshold calibration.
 - Works great with DuckDB/Arrow pipelines.
 
@@ -38,6 +38,7 @@ development context continuous for both humans and AI agents.
 ## Install (local)
 
 ``` r
+
 # install.packages("devtools")
 devtools::install_local("openalexVectorComp")
 ```
@@ -69,6 +70,7 @@ Create a full demo in `getwd()/demos/openalex` (fixtures + Quarto
 analysis):
 
 ``` r
+
 run_demo_openalex(
   demo_dir = file.path(getwd(), "demos", "openalex"),
   render = FALSE
@@ -83,6 +85,7 @@ artifacts are written under `demo_dir/project/`.
 OpenAI-specific demo (same structure, explicit API key argument):
 
 ``` r
+
 run_demo_openai(
   api_key = Sys.getenv("OVC_API_TOKEN"),
   demo_dir = file.path(getwd(), "demos", "openai"),
@@ -95,6 +98,7 @@ The OpenAI demo now follows a two-phase async flow: 1.
 batch is still pending, finalize later:
 
 ``` r
+
 demo_finalize_openai_batch(
   demo_dir = file.path(getwd(), "demos", "openai"),
   api_key = Sys.getenv("OVC_API_TOKEN"),
@@ -110,6 +114,7 @@ This writes comparison outputs to:
 For long-running OpenAI embedding jobs, use the async batch helpers:
 
 ``` r
+
 backend <- backend_config(
   provider = "openai",
   model = "text-embedding-3-small"
@@ -142,7 +147,7 @@ clear error.
 
 ## Prototype distance output
 
-[`distance_reference_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/distance_reference_cosine.md)
+[`distance_reference_cosine()`](https://openalexpro.github.io/openalexVectorComp/reference/distance_reference_cosine.md)
 writes one parquet file:
 
 - `distance_reference_cosine/model_id=<...>/corpus_label=<...>/reference_label=<...>/pairwise-cosine.parquet`
@@ -158,6 +163,7 @@ This is a distance-only matrix with centroid axes:
 To convert this full distance matrix to scores:
 
 ``` r
+
 score_reference_cosine(
   distance_parquet = "my_project/distance_reference_cosine/model_id=.../corpus_label=.../reference_label=...",
   method = "linear" # or "exponential"
@@ -168,67 +174,67 @@ score_reference_cosine(
 
 ## All functions
 
-- [`backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/backend_config.md)
+- [`backend_config()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_config.md)
   : Build embedding backend configuration
-- [`backend_embed_texts()`](https://rkrug.github.io/openalexVectorComp/reference/backend_embed_texts.md)
+- [`backend_embed_texts()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_embed_texts.md)
   : Embed texts via configured backend
-- [`backend_info()`](https://rkrug.github.io/openalexVectorComp/reference/backend_info.md)
+- [`backend_info()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_info.md)
   : Get embedding backend model/service information
-- [`backend_read()`](https://rkrug.github.io/openalexVectorComp/reference/backend_read.md)
+- [`backend_read()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_read.md)
   : Read backend configuration from YAML
-- [`backend_save()`](https://rkrug.github.io/openalexVectorComp/reference/backend_save.md)
+- [`backend_save()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_save.md)
   : Save backend configuration to YAML
-- [`batch_collect_openai()`](https://rkrug.github.io/openalexVectorComp/reference/batch_collect_openai.md)
+- [`batch_collect_openai()`](https://openalexpro.github.io/openalexVectorComp/reference/batch_collect_openai.md)
   : Collect completed OpenAI batch embedding jobs
-- [`batch_status_openai()`](https://rkrug.github.io/openalexVectorComp/reference/batch_status_openai.md)
+- [`batch_status_openai()`](https://openalexpro.github.io/openalexVectorComp/reference/batch_status_openai.md)
   : Inspect OpenAI batch state for a label
-- [`batch_submit_openai()`](https://rkrug.github.io/openalexVectorComp/reference/batch_submit_openai.md)
+- [`batch_submit_openai()`](https://openalexpro.github.io/openalexVectorComp/reference/batch_submit_openai.md)
   : Submit OpenAI Batch jobs for corpus embeddings (asynchronous)
-- [`calibrate_threshold()`](https://rkrug.github.io/openalexVectorComp/reference/calibrate_threshold.md)
+- [`calibrate_threshold()`](https://openalexpro.github.io/openalexVectorComp/reference/calibrate_threshold.md)
   : Calibrate threshold from Parquet scores by streaming batches
-- [`clean_abstract_for_embedding()`](https://rkrug.github.io/openalexVectorComp/reference/clean_abstract_for_embedding.md)
+- [`clean_abstract_for_embedding()`](https://openalexpro.github.io/openalexVectorComp/reference/clean_abstract_for_embedding.md)
   : Clean title/abstract rows into embedding-ready text
-- [`demo_finalize_openai_batch()`](https://rkrug.github.io/openalexVectorComp/reference/demo_finalize_openai_batch.md)
+- [`demo_finalize_openai_batch()`](https://openalexpro.github.io/openalexVectorComp/reference/demo_finalize_openai_batch.md)
   : Finalize OpenAI demo batch jobs and compare direct vs batch
   embeddings
-- [`distance_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/distance_cosine.md)
+- [`distance_cosine()`](https://openalexpro.github.io/openalexVectorComp/reference/distance_cosine.md)
   : Cosine distance between two numeric vectors
-- [`distance_reference_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/distance_reference_cosine.md)
+- [`distance_reference_cosine()`](https://openalexpro.github.io/openalexVectorComp/reference/distance_reference_cosine.md)
   : Pairwise cosine distances with centroid axis between label
   partitions
-- [`distance_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/distance_ridge.md)
+- [`distance_ridge()`](https://openalexpro.github.io/openalexVectorComp/reference/distance_ridge.md)
   : Compute corpus distance to a reference embedding area
-- [`distances()`](https://rkrug.github.io/openalexVectorComp/reference/distances.md)
+- [`distances()`](https://openalexpro.github.io/openalexVectorComp/reference/distances.md)
   : Join prototype and ridge distances lazily via Arrow
-- [`embed_corpus()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus.md)
+- [`embed_corpus()`](https://openalexpro.github.io/openalexVectorComp/reference/embed_corpus.md)
   : Stream a corpus dataset, embed in batches, and write Parquets
-- [`embed_texts()`](https://rkrug.github.io/openalexVectorComp/reference/embed_texts.md)
+- [`embed_texts()`](https://openalexpro.github.io/openalexVectorComp/reference/embed_texts.md)
   : Embed texts through a configured backend
-- [`fit_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/fit_ridge.md)
+- [`fit_ridge()`](https://openalexpro.github.io/openalexVectorComp/reference/fit_ridge.md)
   : Fit a reference-area model from embeddings parquet
-- [`plot_embeddings_pca()`](https://rkrug.github.io/openalexVectorComp/reference/plot_embeddings_pca.md)
+- [`plot_embeddings_pca()`](https://openalexpro.github.io/openalexVectorComp/reference/plot_embeddings_pca.md)
   : Plot embeddings via PCA, colored by arbitrary labels
-- [`plot_embeddings_umap()`](https://rkrug.github.io/openalexVectorComp/reference/plot_embeddings_umap.md)
+- [`plot_embeddings_umap()`](https://openalexpro.github.io/openalexVectorComp/reference/plot_embeddings_umap.md)
   : Plot embeddings via UMAP, colored by arbitrary labels
-- [`run_demo_openai()`](https://rkrug.github.io/openalexVectorComp/reference/run_demo_openai.md)
+- [`run_demo_openai()`](https://openalexpro.github.io/openalexVectorComp/reference/run_demo_openai.md)
   : Create and optionally run an OpenAI-based demo project via Quarto
-- [`run_demo_openalex()`](https://rkrug.github.io/openalexVectorComp/reference/run_demo_openalex.md)
+- [`run_demo_openalex()`](https://openalexpro.github.io/openalexVectorComp/reference/run_demo_openalex.md)
   : Create and optionally run a self-contained demo project via Quarto
-- [`score_reference_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/score_reference_cosine.md)
+- [`score_reference_cosine()`](https://openalexpro.github.io/openalexVectorComp/reference/score_reference_cosine.md)
   : Convert reference-cosine distances to scores
-- [`score_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/score_ridge.md)
+- [`score_ridge()`](https://openalexpro.github.io/openalexVectorComp/reference/score_ridge.md)
   : Convert ridge distances to ridge scores
-- [`similarity_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/similarity_cosine.md)
+- [`similarity_cosine()`](https://openalexpro.github.io/openalexVectorComp/reference/similarity_cosine.md)
   : Cosine similarity between two numeric vectors
 
 # Articles
 
 ### All vignettes
 
-- [abstract-cleaning](https://rkrug.github.io/openalexVectorComp/articles/abstract-cleaning.md):
-- [backend-architecture](https://rkrug.github.io/openalexVectorComp/articles/backend-architecture.md):
+- [abstract-cleaning](https://openalexpro.github.io/openalexVectorComp/articles/abstract-cleaning.md):
+- [backend-architecture](https://openalexpro.github.io/openalexVectorComp/articles/backend-architecture.md):
 - [Asynchronous OpenAI Batch
-  Embeddings](https://rkrug.github.io/openalexVectorComp/articles/openai-batch-async.md):
-- [package-overview](https://rkrug.github.io/openalexVectorComp/articles/package-overview.md):
-- [simplestart](https://rkrug.github.io/openalexVectorComp/articles/simplestart.md):
-- [tei-server-operations](https://rkrug.github.io/openalexVectorComp/articles/tei-server-operations.md):
+  Embeddings](https://openalexpro.github.io/openalexVectorComp/articles/openai-batch-async.md):
+- [package-overview](https://openalexpro.github.io/openalexVectorComp/articles/package-overview.md):
+- [simplestart](https://openalexpro.github.io/openalexVectorComp/articles/simplestart.md):
+- [tei-server-operations](https://openalexpro.github.io/openalexVectorComp/articles/tei-server-operations.md):

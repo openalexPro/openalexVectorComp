@@ -19,7 +19,7 @@ backend_embed_texts(texts, backend = backend_config())
 - backend:
 
   Backend configuration from
-  [`backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/backend_config.md).
+  [`backend_config()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_config.md).
 
 ## Value
 

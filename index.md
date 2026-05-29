@@ -12,8 +12,8 @@ Current development version: **0.3.0**.
   `tei`).
 - Scoring: **prototype cosine-distance** + **reference-area ridge
   score**
-  ([`distance_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/distance_ridge.md) +
-  [`score_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/score_ridge.md)) +
+  ([`distance_ridge()`](https://openalexpro.github.io/openalexVectorComp/reference/distance_ridge.md) +
+  [`score_ridge()`](https://openalexpro.github.io/openalexVectorComp/reference/score_ridge.md)) +
   threshold calibration.
 - Works great with DuckDB/Arrow pipelines.
 
@@ -38,6 +38,7 @@ development context continuous for both humans and AI agents.
 ## Install (local)
 
 ``` r
+
 # install.packages("devtools")
 devtools::install_local("openalexVectorComp")
 ```
@@ -69,6 +70,7 @@ Create a full demo in `getwd()/demos/openalex` (fixtures + Quarto
 analysis):
 
 ``` r
+
 run_demo_openalex(
   demo_dir = file.path(getwd(), "demos", "openalex"),
   render = FALSE
@@ -83,6 +85,7 @@ artifacts are written under `demo_dir/project/`.
 OpenAI-specific demo (same structure, explicit API key argument):
 
 ``` r
+
 run_demo_openai(
   api_key = Sys.getenv("OVC_API_TOKEN"),
   demo_dir = file.path(getwd(), "demos", "openai"),
@@ -95,6 +98,7 @@ The OpenAI demo now follows a two-phase async flow: 1.
 batch is still pending, finalize later:
 
 ``` r
+
 demo_finalize_openai_batch(
   demo_dir = file.path(getwd(), "demos", "openai"),
   api_key = Sys.getenv("OVC_API_TOKEN"),
@@ -110,6 +114,7 @@ This writes comparison outputs to:
 For long-running OpenAI embedding jobs, use the async batch helpers:
 
 ``` r
+
 backend <- backend_config(
   provider = "openai",
   model = "text-embedding-3-small"
@@ -142,7 +147,7 @@ clear error.
 
 ## Prototype distance output
 
-[`distance_reference_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/distance_reference_cosine.md)
+[`distance_reference_cosine()`](https://openalexpro.github.io/openalexVectorComp/reference/distance_reference_cosine.md)
 writes one parquet file:
 
 - `distance_reference_cosine/model_id=<...>/corpus_label=<...>/reference_label=<...>/pairwise-cosine.parquet`
@@ -158,6 +163,7 @@ This is a distance-only matrix with centroid axes:
 To convert this full distance matrix to scores:
 
 ``` r
+
 score_reference_cosine(
   distance_parquet = "my_project/distance_reference_cosine/model_id=.../corpus_label=.../reference_label=...",
   method = "linear" # or "exponential"

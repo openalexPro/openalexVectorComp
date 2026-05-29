@@ -1,7 +1,7 @@
 # Save backend configuration to YAML
 
 Writes a backend configuration (same shape as returned by
-[`backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/backend_config.md))
+[`backend_config()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_config.md))
 to YAML.
 
 ## Usage
@@ -15,7 +15,7 @@ backend_save(backend = backend_config(), fn = "embed_model.yaml")
 - backend:
 
   Backend configuration from
-  [`backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/backend_config.md).
+  [`backend_config()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_config.md).
 
 - fn:
 

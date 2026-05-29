@@ -17,9 +17,9 @@ The focus is implementation details, not end-user quickstart usage.
 Backend logic is split into one core file and provider-specific files:
 
 - `R/embed_backend_core.R`:
-  - [`backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/backend_config.md)
-  - [`backend_info()`](https://rkrug.github.io/openalexVectorComp/reference/backend_info.md)
-  - [`backend_embed_texts()`](https://rkrug.github.io/openalexVectorComp/reference/backend_embed_texts.md)
+  - [`backend_config()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_config.md)
+  - [`backend_info()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_info.md)
+  - [`backend_embed_texts()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_embed_texts.md)
   - shared helpers (`.embedding_with_retry()`,
     `.embedding_request_base()`, …)
 - `R/embed_backend_hf.R`:
@@ -50,7 +50,7 @@ flowchart TD
 ## End-to-End Call Order in `embed_corpus()`
 
 The
-[`embed_corpus()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus.md)
+[`embed_corpus()`](https://openalexpro.github.io/openalexVectorComp/reference/embed_corpus.md)
 function is now a pipeline orchestrator that uses the backend layer.
 
 ``` mermaid
@@ -164,6 +164,7 @@ This keeps auth handling provider-agnostic.
 ### 1) HF backend (default-style)
 
 ``` r
+
 library(openalexVectorComp)
 
 backend <- backend_config(
@@ -183,6 +184,7 @@ dim(emb)
 ### 2) OpenAI backend
 
 ``` r
+
 backend <- backend_config(
   provider = "openai",
   model = "text-embedding-3-small",
@@ -193,6 +195,7 @@ backend <- backend_config(
 ### 3) Local TEI backend
 
 ``` r
+
 backend <- backend_config(
   provider = "tei",
   base_url = "http://localhost:3000",
@@ -207,18 +210,18 @@ Assume new provider name `"acme"`.
 ### Step 1: add dispatch entry in core
 
 In
-[`backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/backend_config.md):
+[`backend_config()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_config.md):
 
 - include `"acme"` in `provider = c(...)`
 - define provider defaults in `switch(provider, ...)`
 
 In
-[`backend_info()`](https://rkrug.github.io/openalexVectorComp/reference/backend_info.md):
+[`backend_info()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_info.md):
 
 - add branch: `acme = .embedding_info_acme(backend)`
 
 In
-[`backend_embed_texts()`](https://rkrug.github.io/openalexVectorComp/reference/backend_embed_texts.md):
+[`backend_embed_texts()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_embed_texts.md):
 
 - add branch: `acme = .embedding_embed_texts_acme(texts, backend)`
 
@@ -250,12 +253,14 @@ Before returning, ensure:
 - run roxygen:
 
 ``` r
+
 roxygen2::roxygenise(".", load = "source")
 ```
 
 - parse/check:
 
 ``` r
+
 for (f in list.files("R", pattern = "[.]R$", full.names = TRUE)) {
   parse(f)
 }

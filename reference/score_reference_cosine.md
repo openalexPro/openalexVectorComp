@@ -1,7 +1,7 @@
 # Convert reference-cosine distances to scores
 
 Reads a wide reference-cosine distance matrix (as written by
-[`distance_reference_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/distance_reference_cosine.md))
+[`distance_reference_cosine()`](https://openalexpro.github.io/openalexVectorComp/reference/distance_reference_cosine.md))
 and converts all numeric distance columns to scores.
 
 ## Usage

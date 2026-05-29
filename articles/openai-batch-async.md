@@ -8,9 +8,9 @@ then collect results later.
 
 In `openalexVectorComp`, this is implemented as three explicit steps:
 
-1.  [`batch_submit_openai()`](https://rkrug.github.io/openalexVectorComp/reference/batch_submit_openai.md)
-2.  [`batch_status_openai()`](https://rkrug.github.io/openalexVectorComp/reference/batch_status_openai.md)
-3.  [`batch_collect_openai()`](https://rkrug.github.io/openalexVectorComp/reference/batch_collect_openai.md)
+1.  [`batch_submit_openai()`](https://openalexpro.github.io/openalexVectorComp/reference/batch_submit_openai.md)
+2.  [`batch_status_openai()`](https://openalexpro.github.io/openalexVectorComp/reference/batch_status_openai.md)
+3.  [`batch_collect_openai()`](https://openalexpro.github.io/openalexVectorComp/reference/batch_collect_openai.md)
 
 This design is operationally safer than waiting for one long blocking
 process.
@@ -43,6 +43,7 @@ flowchart TD
   - `id`, `title`, `abstract`
 
 ``` r
+
 library(openalexVectorComp)
 
 backend <- backend_config(
@@ -55,11 +56,12 @@ Sys.getenv("OVC_API_TOKEN")
 
 ## Step 1: Submit jobs
 
-[`batch_submit_openai()`](https://rkrug.github.io/openalexVectorComp/reference/batch_submit_openai.md)
+[`batch_submit_openai()`](https://openalexpro.github.io/openalexVectorComp/reference/batch_submit_openai.md)
 preprocesses rows, applies skip logic, performs preflight checks,
 auto-splits by limits, then submits jobs.
 
 ``` r
+
 submit_info <- batch_submit_openai(
   project_dir = "my_project",
   backend = backend,
@@ -97,10 +99,11 @@ Before any remote submission:
 ## Step 2: Check status
 
 Use
-[`batch_status_openai()`](https://rkrug.github.io/openalexVectorComp/reference/batch_status_openai.md)
+[`batch_status_openai()`](https://openalexpro.github.io/openalexVectorComp/reference/batch_status_openai.md)
 to inspect queued jobs.
 
 ``` r
+
 status_df <- batch_status_openai(
   project_dir = "my_project",
   label = "corpus",
@@ -126,11 +129,12 @@ Only `completed` jobs are eligible for collection.
 
 ## Step 3: Collect completed jobs
 
-[`batch_collect_openai()`](https://rkrug.github.io/openalexVectorComp/reference/batch_collect_openai.md)
+[`batch_collect_openai()`](https://openalexpro.github.io/openalexVectorComp/reference/batch_collect_openai.md)
 downloads completed outputs, joins by `custom_id`, validates mapping,
 and writes canonical embeddings parquet.
 
 ``` r
+
 collect_info <- batch_collect_openai(
   project_dir = "my_project",
   backend = backend,
@@ -164,10 +168,10 @@ Core columns include:
 
 This keeps downstream functions unchanged:
 
-- [`distance_reference_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/distance_reference_cosine.md)
-- [`distance_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/distance_ridge.md)
-- [`score_reference_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/score_reference_cosine.md)
-- [`score_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/score_ridge.md)
+- [`distance_reference_cosine()`](https://openalexpro.github.io/openalexVectorComp/reference/distance_reference_cosine.md)
+- [`distance_ridge()`](https://openalexpro.github.io/openalexVectorComp/reference/distance_ridge.md)
+- [`score_reference_cosine()`](https://openalexpro.github.io/openalexVectorComp/reference/score_reference_cosine.md)
+- [`score_ridge()`](https://openalexpro.github.io/openalexVectorComp/reference/score_ridge.md)
 
 ## Common pitfalls and what to check
 
@@ -176,6 +180,7 @@ This keeps downstream functions unchanged:
 Check token in the render/session that runs submission:
 
 ``` r
+
 Sys.getenv("OVC_API_TOKEN")
 ```
 

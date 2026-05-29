@@ -47,57 +47,57 @@ The package API is organized into these groups.
 
 ### 1) Embedding backend abstraction
 
-- [`backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/backend_config.md)
-- [`backend_info()`](https://rkrug.github.io/openalexVectorComp/reference/backend_info.md)
-- [`backend_embed_texts()`](https://rkrug.github.io/openalexVectorComp/reference/backend_embed_texts.md)
-- [`backend_read()`](https://rkrug.github.io/openalexVectorComp/reference/backend_read.md)
-- [`backend_save()`](https://rkrug.github.io/openalexVectorComp/reference/backend_save.md)
-- [`embed_texts()`](https://rkrug.github.io/openalexVectorComp/reference/embed_texts.md)
+- [`backend_config()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_config.md)
+- [`backend_info()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_info.md)
+- [`backend_embed_texts()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_embed_texts.md)
+- [`backend_read()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_read.md)
+- [`backend_save()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_save.md)
+- [`embed_texts()`](https://openalexpro.github.io/openalexVectorComp/reference/embed_texts.md)
 
 These functions isolate provider-specific details and expose a stable
 interface.
 
 ### 2) Corpus embedding orchestration
 
-- [`embed_corpus()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus.md)
+- [`embed_corpus()`](https://openalexpro.github.io/openalexVectorComp/reference/embed_corpus.md)
 
 This is the main batch pipeline driver for production embedding runs.
 
 ### 3) Text preparation
 
-- [`clean_abstract_for_embedding()`](https://rkrug.github.io/openalexVectorComp/reference/clean_abstract_for_embedding.md)
+- [`clean_abstract_for_embedding()`](https://openalexpro.github.io/openalexVectorComp/reference/clean_abstract_for_embedding.md)
 
 Default implementation for title/abstract cleaning and canonical text
 creation.
 
 ### 4) Similarity and distance
 
-- [`similarity_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/similarity_cosine.md)
-- [`distance_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/distance_cosine.md)
-- [`distance_reference_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/distance_reference_cosine.md)
-- [`score_reference_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/score_reference_cosine.md)
+- [`similarity_cosine()`](https://openalexpro.github.io/openalexVectorComp/reference/similarity_cosine.md)
+- [`distance_cosine()`](https://openalexpro.github.io/openalexVectorComp/reference/distance_cosine.md)
+- [`distance_reference_cosine()`](https://openalexpro.github.io/openalexVectorComp/reference/distance_reference_cosine.md)
+- [`score_reference_cosine()`](https://openalexpro.github.io/openalexVectorComp/reference/score_reference_cosine.md)
 
 These functions quantify embedding-space relevance from geometric
 perspectives.
 
 Internal helper note:
 
-- [`distances()`](https://rkrug.github.io/openalexVectorComp/reference/distances.md)
+- [`distances()`](https://openalexpro.github.io/openalexVectorComp/reference/distances.md)
   exists as a non-exported helper for joining distance datasets.
 
 ### 5) Supervised scoring and calibration
 
-- [`fit_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/fit_ridge.md)
-- [`distance_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/distance_ridge.md)
-- [`score_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/score_ridge.md)
-- [`calibrate_threshold()`](https://rkrug.github.io/openalexVectorComp/reference/calibrate_threshold.md)
+- [`fit_ridge()`](https://openalexpro.github.io/openalexVectorComp/reference/fit_ridge.md)
+- [`distance_ridge()`](https://openalexpro.github.io/openalexVectorComp/reference/distance_ridge.md)
+- [`score_ridge()`](https://openalexpro.github.io/openalexVectorComp/reference/score_ridge.md)
+- [`calibrate_threshold()`](https://openalexpro.github.io/openalexVectorComp/reference/calibrate_threshold.md)
 
 These functions produce calibrated decision-ready scores.
 
 ### 6) Embedding-space visualization
 
-- [`plot_embeddings_pca()`](https://rkrug.github.io/openalexVectorComp/reference/plot_embeddings_pca.md)
-- [`plot_embeddings_umap()`](https://rkrug.github.io/openalexVectorComp/reference/plot_embeddings_umap.md)
+- [`plot_embeddings_pca()`](https://openalexpro.github.io/openalexVectorComp/reference/plot_embeddings_pca.md)
+- [`plot_embeddings_umap()`](https://openalexpro.github.io/openalexVectorComp/reference/plot_embeddings_umap.md)
 
 These functions support diagnostics and qualitative checks.
 
@@ -118,22 +118,22 @@ flowchart TB
 Typical workflow for one project:
 
 1.  Configure backend
-    ([`backend_config()`](https://rkrug.github.io/openalexVectorComp/reference/backend_config.md)).
+    ([`backend_config()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_config.md)).
 2.  Embed corpus
-    ([`embed_corpus()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus.md)).
+    ([`embed_corpus()`](https://openalexpro.github.io/openalexVectorComp/reference/embed_corpus.md)).
 3.  Compute distance signal
-    ([`distance_reference_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/distance_reference_cosine.md)
+    ([`distance_reference_cosine()`](https://openalexpro.github.io/openalexVectorComp/reference/distance_reference_cosine.md)
     and/or
-    [`distance_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/distance_ridge.md)),
+    [`distance_ridge()`](https://openalexpro.github.io/openalexVectorComp/reference/distance_ridge.md)),
     then score
-    (e.g. [`score_reference_cosine()`](https://rkrug.github.io/openalexVectorComp/reference/score_reference_cosine.md),
-    [`score_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/score_ridge.md)).
+    (e.g. [`score_reference_cosine()`](https://openalexpro.github.io/openalexVectorComp/reference/score_reference_cosine.md),
+    [`score_ridge()`](https://openalexpro.github.io/openalexVectorComp/reference/score_ridge.md)).
 4.  Calibrate operating threshold
-    ([`calibrate_threshold()`](https://rkrug.github.io/openalexVectorComp/reference/calibrate_threshold.md)).
+    ([`calibrate_threshold()`](https://openalexpro.github.io/openalexVectorComp/reference/calibrate_threshold.md)).
 5.  Validate with plots
-    ([`plot_embeddings_pca()`](https://rkrug.github.io/openalexVectorComp/reference/plot_embeddings_pca.md)
+    ([`plot_embeddings_pca()`](https://openalexpro.github.io/openalexVectorComp/reference/plot_embeddings_pca.md)
     /
-    [`plot_embeddings_umap()`](https://rkrug.github.io/openalexVectorComp/reference/plot_embeddings_umap.md)).
+    [`plot_embeddings_umap()`](https://openalexpro.github.io/openalexVectorComp/reference/plot_embeddings_umap.md)).
 
 ``` mermaid
 sequenceDiagram
@@ -161,7 +161,7 @@ sequenceDiagram
 
 ### Corpus input
 
-[`embed_corpus()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus.md)
+[`embed_corpus()`](https://openalexpro.github.io/openalexVectorComp/reference/embed_corpus.md)
 expects:
 
 - `project_dir/corpus` as Arrow dataset
@@ -194,7 +194,7 @@ flowchart TB
 
 ## Text-Preparation Contract
 
-[`embed_corpus()`](https://rkrug.github.io/openalexVectorComp/reference/embed_corpus.md)
+[`embed_corpus()`](https://openalexpro.github.io/openalexVectorComp/reference/embed_corpus.md)
 accepts:
 
 - `text_preprocessor` (function)
@@ -243,6 +243,7 @@ flowchart LR
 ## Minimal End-to-End Example
 
 ``` r
+
 library(openalexVectorComp)
 
 backend <- backend_config(
@@ -301,7 +302,7 @@ best <- calibrate_threshold(
 - Keep `save_text = TRUE` in alpha/review phases for auditability.
 - Use `dry_run = TRUE` to validate custom cleaners before API spend.
 - Prefer `mode = "balanced"` in
-  [`clean_abstract_for_embedding()`](https://rkrug.github.io/openalexVectorComp/reference/clean_abstract_for_embedding.md)
+  [`clean_abstract_for_embedding()`](https://openalexpro.github.io/openalexVectorComp/reference/clean_abstract_for_embedding.md)
   unless you have measured reasons to go stricter.
 - Re-calibrate thresholds whenever model, cleaner policy, or label set
   changes.

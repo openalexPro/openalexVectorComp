@@ -37,8 +37,8 @@ shipped”. - `NEWS.md` = “user-facing release highlights”.
 - Documentation sync to align with implemented API and current
   repository layout.
 - Clarified ridge/reference-area behavior in docs
-  ([`distance_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/distance_ridge.md) +
-  [`score_ridge()`](https://rkrug.github.io/openalexVectorComp/reference/score_ridge.md)).
+  ([`distance_ridge()`](https://openalexpro.github.io/openalexVectorComp/reference/distance_ridge.md) +
+  [`score_ridge()`](https://openalexpro.github.io/openalexVectorComp/reference/score_ridge.md)).
 - Updated vignette paths and internal/exported function descriptions.
 - Version bump to `0.1.3`.
 - Included repository cleanup scope for stale `inst/qdrant functions/*`
