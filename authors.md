@@ -12,13 +12,13 @@ Source:
 [`DESCRIPTION`](https://github.com/openalexPro/openalexVectorComp/blob/main/DESCRIPTION)
 
 Krug R (2026). *openalexVectorComp: Embedding Vectorization and
-Distance-Based Scoring Workflows*. R package version 0.3.0,
+Distance-Based Scoring Workflows*. R package version 0.3.1,
 <https://github.com/openalexPro/openalexVectorComp>.
 
     @Manual{,
       title = {openalexVectorComp: Embedding Vectorization and Distance-Based Scoring Workflows},
       author = {Rainer M Krug},
       year = {2026},
-      note = {R package version 0.3.0},
+      note = {R package version 0.3.1},
       url = {https://github.com/openalexPro/openalexVectorComp},
     }
