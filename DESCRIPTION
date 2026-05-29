@@ -3,12 +3,12 @@ Type: Package
 Title: Embedding Vectorization and Distance-Based Scoring Workflows
 Version: 0.3.0
 Authors@R: c(
-    person(given = "Rainer", family = "Krug", role = c("aut", "cre"), email = "you@example.org"),
+    person(given = "Rainer", family = "Krug", role = c("aut", "cre"), email = "Rainer@krugs.de"),
     person(given = "ChatGPT", family = "Assistant", role = "ctb")
   )
 Author: Rainer Krug [aut, cre],
   ChatGPT Assistant [ctb]
-Maintainer: Rainer Krug <you@example.org>
+Maintainer: Rainer Krug <Rainer@krugs.de>
 Description: R-first orchestration for text vectorization (embeddings),
     embedding distance computation, and distance-based scoring workflows.
     Supports backend-neutral embedding providers (HF, OpenAI, TEI),
