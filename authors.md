@@ -9,7 +9,7 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/openalexPro/openalexVectorComp/blob/main/DESCRIPTION)
+[`DESCRIPTION`](https://github.com/openalexPro/openalexVectorComp/blob/v0.3.2/DESCRIPTION)
 
 Krug R (2026). *openalexVectorComp: Embedding Vectorization and
 Distance-Based Scoring Workflows*. R package version 0.3.2,
