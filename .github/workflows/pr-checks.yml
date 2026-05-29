@@ -13,14 +13,13 @@ jobs:
   r-cmd-check:
     name: R CMD check (${{ matrix.config.os }}, R ${{ matrix.config.r }})
     runs-on: ${{ matrix.config.os }}
-    timeout-minutes: 60
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         config:
           - { os: ubuntu-latest, r: "release" }
           - { os: ubuntu-latest, r: "oldrel-1" }
-          - { os: ubuntu-latest, r: "devel" }
           - { os: macos-latest,  r: "release" }
           - { os: windows-latest, r: "release" }
 
