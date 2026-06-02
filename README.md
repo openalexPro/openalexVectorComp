@@ -1,4 +1,7 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19607514.svg)](https://doi.org/10.5281/zenodo.19607514)
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Codecov](https://codecov.io/gh/openalexPro/openalexVectorComp/graph/badge.svg)](https://app.codecov.io/gh/openalexPro/openalexVectorComp)
 
 # openalexVectorComp
 
