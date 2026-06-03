@@ -60,6 +60,7 @@ Start with `vignettes/simplestart.qmd`, then see:
 - `vignettes/package-overview.qmd`
 - `vignettes/openai-batch-async.qmd`
 - `vignettes/abstract-cleaning.qmd`
+- `vignettes/specter2-setup.qmd` (academic-paper embeddings via TEI)
 
 ## Run a Local Demo Project
 
