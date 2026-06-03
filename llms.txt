@@ -63,6 +63,7 @@ Start with `vignettes/simplestart.qmd`, then see:
 - `vignettes/package-overview.qmd`
 - `vignettes/openai-batch-async.qmd`
 - `vignettes/abstract-cleaning.qmd`
+- `vignettes/specter2-setup.qmd` (academic-paper embeddings via TEI)
 
 ## Run a Local Demo Project
 
@@ -184,6 +185,9 @@ score_reference_cosine(
   : Read backend configuration from YAML
 - [`backend_save()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_save.md)
   : Save backend configuration to YAML
+- [`backend_specter2_tei()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_specter2_tei.md)
+  : Backend preset for a local TEI server serving the merged SPECTER2
+  proximity model
 - [`batch_collect_openai()`](https://openalexpro.github.io/openalexVectorComp/reference/batch_collect_openai.md)
   : Collect completed OpenAI batch embedding jobs
 - [`batch_status_openai()`](https://openalexpro.github.io/openalexVectorComp/reference/batch_status_openai.md)
@@ -237,4 +241,5 @@ score_reference_cosine(
   Embeddings](https://openalexpro.github.io/openalexVectorComp/articles/openai-batch-async.md):
 - [package-overview](https://openalexpro.github.io/openalexVectorComp/articles/package-overview.md):
 - [simplestart](https://openalexpro.github.io/openalexVectorComp/articles/simplestart.md):
+- [specter2-setup](https://openalexpro.github.io/openalexVectorComp/articles/specter2-setup.md):
 - [tei-server-operations](https://openalexpro.github.io/openalexVectorComp/articles/tei-server-operations.md):

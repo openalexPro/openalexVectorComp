@@ -1,14 +1,17 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://openalexpro.github.io/openalexVectorComp/404.html</loc></url>
+<url><loc>https://openalexpro.github.io/openalexVectorComp/CLAUDE.html</loc></url>
 <url><loc>https://openalexpro.github.io/openalexVectorComp/DEVELOPMENT_CONTINUITY.html</loc></url>
 <url><loc>https://openalexpro.github.io/openalexVectorComp/IMPLEMENTATION_NOTES.html</loc></url>
 <url><loc>https://openalexpro.github.io/openalexVectorComp/LICENSE-text.html</loc></url>
+<url><loc>https://openalexpro.github.io/openalexVectorComp/NOTES.html</loc></url>
 <url><loc>https://openalexpro.github.io/openalexVectorComp/articles/abstract-cleaning.html</loc></url>
 <url><loc>https://openalexpro.github.io/openalexVectorComp/articles/backend-architecture.html</loc></url>
 <url><loc>https://openalexpro.github.io/openalexVectorComp/articles/index.html</loc></url>
 <url><loc>https://openalexpro.github.io/openalexVectorComp/articles/openai-batch-async.html</loc></url>
 <url><loc>https://openalexpro.github.io/openalexVectorComp/articles/package-overview.html</loc></url>
 <url><loc>https://openalexpro.github.io/openalexVectorComp/articles/simplestart.html</loc></url>
+<url><loc>https://openalexpro.github.io/openalexVectorComp/articles/specter2-setup.html</loc></url>
 <url><loc>https://openalexpro.github.io/openalexVectorComp/articles/tei-server-operations.html</loc></url>
 <url><loc>https://openalexpro.github.io/openalexVectorComp/authors.html</loc></url>
 <url><loc>https://openalexpro.github.io/openalexVectorComp/index.html</loc></url>
@@ -18,6 +21,7 @@
 <url><loc>https://openalexpro.github.io/openalexVectorComp/reference/backend_info.html</loc></url>
 <url><loc>https://openalexpro.github.io/openalexVectorComp/reference/backend_read.html</loc></url>
 <url><loc>https://openalexpro.github.io/openalexVectorComp/reference/backend_save.html</loc></url>
+<url><loc>https://openalexpro.github.io/openalexVectorComp/reference/backend_specter2_tei.html</loc></url>
 <url><loc>https://openalexpro.github.io/openalexVectorComp/reference/batch_collect_openai.html</loc></url>
 <url><loc>https://openalexpro.github.io/openalexVectorComp/reference/batch_status_openai.html</loc></url>
 <url><loc>https://openalexpro.github.io/openalexVectorComp/reference/batch_submit_openai.html</loc></url>

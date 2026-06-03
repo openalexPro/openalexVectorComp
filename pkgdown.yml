@@ -7,8 +7,9 @@ articles:
   openai-batch-async: openai-batch-async.html
   package-overview: package-overview.html
   simplestart: simplestart.html
+  specter2-setup: specter2-setup.html
   tei-server-operations: tei-server-operations.html
-last_built: 2026-06-02T15:45Z
+last_built: 2026-06-03T13:48Z
 urls:
   reference: https://openalexpro.github.io/openalexVectorComp/reference
   article: https://openalexpro.github.io/openalexVectorComp/articles

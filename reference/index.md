@@ -12,6 +12,9 @@
   : Read backend configuration from YAML
 - [`backend_save()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_save.md)
   : Save backend configuration to YAML
+- [`backend_specter2_tei()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_specter2_tei.md)
+  : Backend preset for a local TEI server serving the merged SPECTER2
+  proximity model
 - [`batch_collect_openai()`](https://openalexpro.github.io/openalexVectorComp/reference/batch_collect_openai.md)
   : Collect completed OpenAI batch embedding jobs
 - [`batch_status_openai()`](https://openalexpro.github.io/openalexVectorComp/reference/batch_status_openai.md)

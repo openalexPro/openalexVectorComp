@@ -99,6 +99,36 @@ considered: - Impact: - Follow-up tasks:
 - Follow-up tasks: keep tutorial narrative and command output examples
   aligned.
 
+- Date: 2026-05-22
+
+- Scope: SPECTER2 support for academic paper topic comparison
+
+- Decision: Add SPECTER2 proximity model support via a documented
+  one-time merge step (Python script) + local TEI serving, exposed
+  through a thin R helper
+  [`backend_specter2_tei()`](https://openalexpro.github.io/openalexVectorComp/reference/backend_specter2_tei.md).
+  Setup material lives in `inst/scripts/` and
+  `vignettes/specter2-setup.qmd`.
+
+- Why: Domain-specific model gives better topic separation than general
+  OpenAI embeddings for academic corpora, at 768 dim and zero per-token
+  cost. TEI cannot load adapter-transformers adapters, so a one-time
+  merge is required. Keeping the merge out of the R API surface avoids
+  forcing a Python dependency on this R-first package.
+
+- Alternatives considered: bundling the merge as an R function
+  (rejected: Python toolchain dependency, unstable `adapters` library
+  API, conflicts with the principle that the package does not manage
+  external services); shipping the merged model itself (rejected: ~500
+  MB).
+
+- Impact: Users can opt into SPECTER2 with one merge + one TEI launch;
+  the rest of the pipeline is unchanged.
+
+- Follow-up tasks: revisit if the `adapters` library API shifts again;
+  add a benchmark comparing SPECTER2 vs `text-embedding-3-small` once we
+  have a reference corpus.
+
 - Date: 2026-04-01
 
 - Scope: Demo organization and docs

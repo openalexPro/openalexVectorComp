@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">openalexVectorComp</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -23,6 +23,7 @@
     <li><a class="dropdown-item" href="articles/openai-batch-async.html">Asynchronous OpenAI Batch Embeddings</a></li>
     <li><a class="dropdown-item" href="articles/package-overview.html">package-overview</a></li>
     <li><a class="dropdown-item" href="articles/simplestart.html">simplestart</a></li>
+    <li><a class="dropdown-item" href="articles/specter2-setup.html">specter2-setup</a></li>
     <li><a class="dropdown-item" href="articles/tei-server-operations.html">tei-server-operations</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
@@ -87,6 +88,13 @@
 <li><p>Alternatives considered: long blocking poll in render; hard-fail on timeout.</p></li>
 <li><p>Impact: Clearer async semantics; stable demo render; persisted comparison outputs.</p></li>
 <li><p>Follow-up tasks: keep tutorial narrative and command output examples aligned.</p></li>
+<li><p>Date: 2026-05-22</p></li>
+<li><p>Scope: SPECTER2 support for academic paper topic comparison</p></li>
+<li><p>Decision: Add SPECTER2 proximity model support via a documented one-time merge step (Python script) + local TEI serving, exposed through a thin R helper <code><a href="reference/backend_specter2_tei.html">backend_specter2_tei()</a></code>. Setup material lives in <code>inst/scripts/</code> and <code>vignettes/specter2-setup.qmd</code>.</p></li>
+<li><p>Why: Domain-specific model gives better topic separation than general OpenAI embeddings for academic corpora, at 768 dim and zero per-token cost. TEI cannot load adapter-transformers adapters, so a one-time merge is required. Keeping the merge out of the R API surface avoids forcing a Python dependency on this R-first package.</p></li>
+<li><p>Alternatives considered: bundling the merge as an R function (rejected: Python toolchain dependency, unstable <code>adapters</code> library API, conflicts with the principle that the package does not manage external services); shipping the merged model itself (rejected: ~500 MB).</p></li>
+<li><p>Impact: Users can opt into SPECTER2 with one merge + one TEI launch; the rest of the pipeline is unchanged.</p></li>
+<li><p>Follow-up tasks: revisit if the <code>adapters</code> library API shifts again; add a benchmark comparing SPECTER2 vs <code>text-embedding-3-small</code> once we have a reference corpus.</p></li>
 <li><p>Date: 2026-04-01</p></li>
 <li><p>Scope: Demo organization and docs</p></li>
 <li><p>Decision: Default demo directories changed to <code>demos/&lt;provider&gt;</code>.</p></li>
