@@ -97,7 +97,7 @@
 
   list(
     model = list(
-      id = info$model_id %||% NA_character_,
+      id = info$served_model_name %||% info$model_id %||% NA_character_,
       requested_id = info$model_id %||% NA_character_,
       embedding_dim = info$embedding_size %||% NA_integer_
     ),
