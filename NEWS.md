@@ -1,5 +1,17 @@
 # openalexVectorComp news
 
+## 0.3.4
+
+### Bug Fixes
+
+- The TEI backend's id uses the server's `served_model_name` before
+  `model_id`.
+
+### Continuous integration
+
+- R CMD check also runs on pushes to `main` and `dev`; test coverage only
+  on pushes to `main`.
+
 ## 0.3.3
 
 ### New Features
