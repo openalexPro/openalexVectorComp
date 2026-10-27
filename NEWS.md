@@ -1,5 +1,12 @@
 # openalexVectorComp news
 
+## development version
+
+### Bug Fixes
+
+- The TEI backend's id uses the server's `served_model_name` before
+  `model_id`.
+
 ## 0.3.3
 
 ### New Features
