@@ -1,5 +1,29 @@
 # openalexVectorComp news
 
+## 0.3.5
+
+### Bug Fixes
+
+- With `delete_existing = FALSE`, `embed_corpus()` and
+  `batch_submit_openai()` are supposed to skip rows that already have
+  embeddings with the same text hash. They never did: the existing
+  embeddings were opened with the label folder passed as the `schema`
+  argument of `arrow::open_dataset()`, which always failed silently. As a
+  result every run re-embedded the whole corpus, and `batch_submit_openai()`
+  resubmitted already-embedded rows as new (paid) OpenAI batch jobs. The
+  existing `label=<label>` folder is now read correctly and unchanged rows
+  are skipped.
+- When a row's text has changed and it is embedded again, its old row is
+  now removed, so each id appears exactly once per `label=<label>` folder
+  and distance and score functions no longer see duplicate ids. This applies
+  to `embed_corpus()` with `delete_existing = FALSE` and to
+  `batch_collect_openai()`. New rows are written to a new `batch=<n>` folder
+  first (`embed_corpus()` no longer restarts at `batch=1`, which would have
+  overwritten unchanged rows); only then are the old rows removed from older
+  shards. Shards and `batch=` folders left empty are deleted. Duplicates left
+  by earlier versions are cleaned up the next time new embeddings are written
+  to that label.
+
 ## 0.3.4
 
 ### Bug Fixes

@@ -161,7 +161,7 @@ embed_corpus <- function(
 
   total_rows <- nrow(ds)
   no_shards <- ceiling(total_rows / batch_size)
-  shard_idx <- 0L
+  shard_idx <- shard_offset <- 0L
   embedded_rows <- 0L
   skipped_rows <- 0L
 
@@ -178,30 +178,9 @@ embed_corpus <- function(
 
   existing_hash <- stats::setNames(character(), character())
   if (!delete_existing) {
-    idx_ds <- try(
-      arrow::open_dataset(
-        model_dir,
-        paste0("label=", label_part),
-        factory_options = list(exclude_invalid_files = TRUE)
-      ),
-      silent = TRUE
-    )
-    if (!inherits(idx_ds, "try-error")) {
-      idx_cols <- names(idx_ds)
-      hash_col <- if ("text_hash" %in% idx_cols) "text_hash" else if ("hash" %in% idx_cols) "hash" else NULL
-      if (!is.null(hash_col) && "id" %in% idx_cols) {
-        idx_df <- idx_ds |>
-          dplyr::select(id, dplyr::all_of(hash_col)) |>
-          dplyr::collect()
-        if (nrow(idx_df)) {
-          names(idx_df)[2] <- "text_hash"
-          idx_df <- idx_df[!is.na(idx_df$id) & !is.na(idx_df$text_hash), , drop = FALSE]
-          if (nrow(idx_df)) {
-            existing_hash <- stats::setNames(as.character(idx_df$text_hash), as.character(idx_df$id))
-          }
-        }
-      }
-    }
+    existing_hash <- .ovc_load_existing_hash(model_dir = model_dir, label_part = label_part)
+    # Append new shards after existing ones instead of overwriting batch=1..n.
+    shard_idx <- shard_offset <- .ovc_next_embed_batch_index(label_dir) - 1L
   }
 
   progress_id <- NULL
@@ -370,6 +349,9 @@ embed_corpus <- function(
   if (!is.null(progress_id)) {
     cli::cli_progress_done(id = progress_id)
   }
+  if (!delete_existing && shard_idx > shard_offset) {
+    .ovc_prune_superseded_rows(label_dir)
+  }
   if (isTRUE(dry_run) && length(dry_run_preview)) {
     preview_all <- do.call(rbind, dry_run_preview)
     arrow::write_parquet(preview_all, dry_run_file)
@@ -388,7 +370,7 @@ embed_corpus <- function(
       "Done! Embedded %d new/changed works, skipped %d unchanged rows, wrote %d batches in %s.",
       embedded_rows,
       skipped_rows,
-      shard_idx,
+      shard_idx - shard_offset,
       format(elapsed, digits = 2)
     ))
   }

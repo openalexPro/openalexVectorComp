@@ -113,6 +113,7 @@ batch_collect_openai <- function(
   }
 
   .ovc_openai_state_write(state_file, state)
+  if (downloaded_jobs > 0L) .ovc_prune_superseded_rows(label_dir)
 
   if (verbose) {
     if (downloaded_jobs == 0L) {

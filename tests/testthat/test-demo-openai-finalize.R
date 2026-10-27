@@ -159,3 +159,109 @@ testthat::test_that("demo_finalize_openai_batch accepts api_key argument for tok
   testthat::expect_match(out$message, "No batch submission state found")
   testthat::expect_identical(Sys.getenv("OVC_API_TOKEN", unset = ""), "")
 })
+
+testthat::test_that("demo_finalize_openai_batch validates arguments and workspace", {
+  testthat::expect_error(demo_finalize_openai_batch(demo_dir = ""), "`demo_dir` must be a non-empty")
+  testthat::expect_error(demo_finalize_openai_batch(demo_dir = "x", label = ""), "`label` must be a non-empty")
+  testthat::expect_error(demo_finalize_openai_batch(demo_dir = "x", api_key = ""), "`api_key` must be NULL or")
+  testthat::expect_error(demo_finalize_openai_batch(demo_dir = "x", refresh_remote = NA), "`refresh_remote` must be")
+  testthat::expect_error(demo_finalize_openai_batch(demo_dir = "x", verbose = "no"), "`verbose` must be")
+
+  td <- tempfile("ovc_finalize_missing_")
+  dir.create(td)
+  testthat::expect_error(demo_finalize_openai_batch(td, verbose = FALSE), "Missing backend config")
+  backend_save(backend_config(provider = "openai"), fn = file.path(td, "demo_backend.yaml"))
+  testthat::expect_error(demo_finalize_openai_batch(td, verbose = FALSE), "Missing demo project directory")
+
+  demo_dir <- make_demo_openai_workspace()
+  emb <- file.path(demo_dir, "project", "embeddings")
+  dir.create(file.path(emb, "model_id=a"), recursive = TRUE)
+  dir.create(file.path(emb, "model_id=b"), recursive = TRUE)
+  testthat::expect_error(
+    demo_finalize_openai_batch(demo_dir, verbose = FALSE),
+    "Expected exactly one model_id directory"
+  )
+})
+
+testthat::test_that("demo_finalize_openai_batch reports pending batches and restores the token", {
+  demo_dir <- make_demo_openai_workspace()
+  project_dir <- file.path(demo_dir, "project")
+  jsonlite::write_json(
+    list(
+      version = 1L,
+      provider = "openai",
+      model_id = "text-embedding-3-small",
+      label = "corpus_batch",
+      backend = list(base_url = "https://api.openai.test/v1", timeout = 60, retries = 0),
+      jobs = list()
+    ),
+    path = file.path(project_dir, "openai_batch_state_label=corpus_batch.json"),
+    auto_unbox = TRUE
+  )
+
+  ovc_local_token("outer-token")
+  testthat::expect_message(
+    out <- demo_finalize_openai_batch(demo_dir, api_key = "inner", verbose = TRUE),
+    "Batch still pending"
+  )
+  testthat::expect_false(out$comparison_ready)
+  testthat::expect_identical(out$collect$checked_jobs, 0L)
+  testthat::expect_identical(Sys.getenv("OVC_API_TOKEN"), "outer-token")
+})
+
+testthat::test_that("demo_finalize_openai_batch announces a written comparison when verbose", {
+  demo_dir <- make_demo_openai_workspace()
+  project_dir <- file.path(demo_dir, "project")
+  df <- data.frame(id = c("A", "B"), V1 = c(1, 0), V2 = c(0, 1))
+  write_demo_label_embeddings(project_dir, "corpus", df)
+  write_demo_label_embeddings(project_dir, "corpus_batch", df)
+  file.create(file.path(project_dir, "openai_batch_state_label=corpus_batch.json"))
+
+  testthat::expect_message(
+    out <- testthat::with_mocked_bindings(
+      demo_finalize_openai_batch(demo_dir, verbose = TRUE),
+      batch_status_openai = function(...) data.frame(),
+      batch_collect_openai = function(...) list(downloaded_jobs = 0L),
+      .package = "openalexVectorComp"
+    ),
+    "Batch comparison written successfully"
+  )
+  testthat::expect_true(out$comparison_ready)
+  testthat::expect_equal(out$summary_df$mean_cosine_similarity, 1)
+  summary <- yaml::read_yaml(out$summary_yaml)
+  testthat::expect_identical(summary$matched_ids, 2L)
+})
+
+testthat::test_that(".ovc_compare_direct_vs_batch validates inputs and handles zero vectors", {
+  compare <- ovc_ns(".ovc_compare_direct_vs_batch")
+  mk <- function(direct, batch) {
+    demo_dir <- make_demo_openai_workspace()
+    project_dir <- file.path(demo_dir, "project")
+    write_demo_label_embeddings(project_dir, "corpus", direct)
+    write_demo_label_embeddings(project_dir, "corpus_batch", batch)
+    function() compare(project_dir, "model_id=text-embedding-3-small", batch_label = "corpus_batch")
+  }
+  ok <- data.frame(id = c("A", "B"), V1 = c(1, 0), V2 = c(0, 1))
+  empty <- ok[0, ]
+
+  testthat::expect_error(mk(empty, ok)(), "Direct embeddings are empty")
+  testthat::expect_error(mk(ok, empty)(), "Batch embeddings are empty")
+  testthat::expect_error(
+    mk(ok, data.frame(id = c("A", "B"), W1 = 1))(),
+    "Could not find common embedding columns"
+  )
+  testthat::expect_error(
+    mk(ok, data.frame(id = c("X", "Y"), V1 = 1, V2 = 1))(),
+    "No overlapping ids"
+  )
+
+  res <- mk(
+    data.frame(id = c("A", "B"), V1 = c(0, 3), V2 = c(0, 4)),
+    data.frame(id = c("A", "B"), V1 = c(1, 3), V2 = c(0, 4.5))
+  )()
+  cmp <- res$comparison_df[order(res$comparison_df$id), ]
+  testthat::expect_true(is.na(cmp$cosine_similarity[1]))
+  testthat::expect_equal(cmp$max_abs_diff, c(1, 0.5))
+  testthat::expect_identical(res$matched_ids, 2L)
+  testthat::expect_identical(res$vcols, c("V1", "V2"))
+})

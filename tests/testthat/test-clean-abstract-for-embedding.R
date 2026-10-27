@@ -71,3 +71,11 @@ testthat::test_that("clean_abstract_for_embedding mode thresholds differ", {
   strict <- clean_abstract_for_embedding(df, mode = "strict", no_abstract_policy = "discard")
   testthat::expect_gte(nrow(lenient), nrow(strict))
 })
+
+testthat::test_that("clean_abstract_for_embedding validates its input", {
+  testthat::expect_error(clean_abstract_for_embedding("x"), "`df` must be a data frame")
+  testthat::expect_error(
+    clean_abstract_for_embedding(data.frame(id = "a", title = "t")),
+    "`df` must contain columns: abstract"
+  )
+})
