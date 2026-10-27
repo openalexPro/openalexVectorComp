@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="index.html">openalexVectorComp</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -58,52 +58,37 @@
 </nav><div class="container template-home">
 <div class="row">
   <main id="main" class="col-md-9">
+<p><a href="https://github.com/openalexPro/openalexVectorComp/tree/dev" class="external-link"><img src="https://img.shields.io/github/r-package/v/openalexPro/openalexVectorComp/dev?label=dev" alt="dev"></a> <a href="https://github.com/openalexPro/openalexVectorComp/actions/workflows/pr-checks.yml?query=branch%3Adev" class="external-link"><img src="https://img.shields.io/github/actions/workflow/status/openalexPro/openalexVectorComp/pr-checks.yml?branch=dev&amp;label=CI%20dev" alt="CI dev"></a></p>
+<p><a href="https://doi.org/10.5281/zenodo.19607514" class="external-link"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.19607514.svg" alt="DOI"></a> <a href="https://lifecycle.r-lib.org/articles/stages.html" class="external-link"><img src="https://img.shields.io/badge/lifecycle-experimental-orange.svg" alt="Lifecycle: experimental"></a> <a href="https://opensource.org/licenses/MIT" class="external-link"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a></p>
 <div class="section level1">
 <div class="page-header"><h1 id="openalexvectorcomp">openalexVectorComp<a class="anchor" aria-label="anchor" href="#openalexvectorcomp"></a>
 </h1></div>
 <p><strong>Embedding of Corpora</strong>, implemented in R.</p>
-<div class="section level2">
-<h2 id="version">Version<a class="anchor" aria-label="anchor" href="#version"></a>
-</h2>
-<p>Current development version: <strong>0.3.0</strong>.</p>
 <ul>
 <li>Embeddings served by <strong>TEI</strong> (Text Embeddings Inference; Hugging Face).</li>
 <li>Embeddings via a <strong>backend-neutral interface</strong> (<code>hf</code>, <code>openai</code>, <code>tei</code>).</li>
 <li>Scoring: <strong>prototype cosine-distance</strong> + <strong>reference-area ridge score</strong> (<code><a href="reference/distance_ridge.html">distance_ridge()</a></code> + <code><a href="reference/score_ridge.html">score_ridge()</a></code>) + threshold calibration.</li>
 <li>Works great with DuckDB/Arrow pipelines.</li>
 </ul>
-</div>
-<div class="section level2">
-<h2 id="id_030-highlights">0.3.0 Highlights<a class="anchor" aria-label="anchor" href="#id_030-highlights"></a>
-</h2>
-<ul>
-<li>Demo defaults now use a shared structure:
-<ul>
-<li><code>demos/openalex</code></li>
-<li><code>demos/openai</code></li>
-</ul>
-</li>
-<li>OpenAI demo uses an explicit two-phase async workflow:
-<ul>
-<li>render now (submit/poll briefly),</li>
-<li>finalize later (status/collect/compare) if batch is still pending.</li>
-</ul>
-</li>
-<li>Added tutorial-style demo narratives with clearer explanation of workflow choices, costs/latency trade-offs, and interpretation of direct-vs-batch embedding differences.</li>
-</ul>
-</div>
+<p>The badges show the released version (r-universe, built from <code>main</code>) and the development version (<code>dev</code>); what changed in each release is in <a href="NEWS.html">NEWS.md</a>.</p>
 <div class="section level2">
 <h2 id="development-continuity">Development Continuity<a class="anchor" aria-label="anchor" href="#development-continuity"></a>
 </h2>
 <p>See <code>DEVELOPMENT_CONTINUITY.md</code> for design principles, architectural decisions, and the required pre-commit update checklist that keeps development context continuous for both humans and AI agents.</p>
 </div>
 <div class="section level2">
-<h2 id="install-local">Install (local)<a class="anchor" aria-label="anchor" href="#install-local"></a>
+<h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
+<p>Released version, from the openalexPro r-universe:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># install.packages("devtools")</span></span>
-<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">install_local</span><span class="op">(</span><span class="st">"openalexVectorComp"</span><span class="op">)</span></span></code></pre></div>
-<p>Or build &amp; install from the zip you downloaded.</p>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span></span>
+<span>  <span class="st">"openalexVectorComp"</span>,</span>
+<span>  repos <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"https://openalexpro.r-universe.dev"</span>, <span class="st">"https://cloud.r-project.org"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>Development version (the <code>dev</code> branch), from GitHub:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># install.packages("remotes")</span></span>
+<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"openalexPro/openalexVectorComp"</span>, ref <span class="op">=</span> <span class="st">"dev"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="runtime-dependencies">Runtime dependencies<a class="anchor" aria-label="anchor" href="#runtime-dependencies"></a>
@@ -111,7 +96,7 @@
 <ul>
 <li>
 <p>For <code>provider = "tei"</code>:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="ex">text-embeddings-router</span> <span class="at">--model</span> BAAI/bge-small-en-v1.5 <span class="at">--port</span> 8080</span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="ex">text-embeddings-router</span> <span class="at">--model</span> BAAI/bge-small-en-v1.5 <span class="at">--port</span> 8080</span></code></pre></div>
 </li>
 <li><p>For hosted embedding backends (<code>provider = "hf"</code> or <code>"openai"</code>), set <code>OVC_API_TOKEN</code> in your environment.</p></li>
 </ul>
@@ -132,21 +117,21 @@
 <h2 id="run-a-local-demo-project">Run a Local Demo Project<a class="anchor" aria-label="anchor" href="#run-a-local-demo-project"></a>
 </h2>
 <p>Create a full demo in <code>getwd()/demos/openalex</code> (fixtures + Quarto analysis):</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/run_demo_openalex.html">run_demo_openalex</a></span><span class="op">(</span></span>
 <span>  demo_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/getwd.html" class="external-link">getwd</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"demos"</span>, <span class="st">"openalex"</span><span class="op">)</span>,</span>
 <span>  render <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>Set <code>render = TRUE</code> to run <code>quarto render</code> directly. For hosted backends (<code>provider = "hf"</code> or <code>"openai"</code>), set <code>OVC_API_TOKEN</code> first. The Quarto file and backend YAML are placed in <code>demo_dir</code>, while all pipeline artifacts are written under <code>demo_dir/project/</code>.</p>
 <p>OpenAI-specific demo (same structure, explicit API key argument):</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/run_demo_openai.html">run_demo_openai</a></span><span class="op">(</span></span>
 <span>  api_key <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"OVC_API_TOKEN"</span><span class="op">)</span>,</span>
 <span>  demo_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/getwd.html" class="external-link">getwd</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"demos"</span>, <span class="st">"openai"</span><span class="op">)</span>,</span>
 <span>  render <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>The OpenAI demo now follows a two-phase async flow: 1. <code>run_demo_openai(..., render = TRUE)</code> submits batch and continues. 2. If batch is still pending, finalize later:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/demo_finalize_openai_batch.html">demo_finalize_openai_batch</a></span><span class="op">(</span></span>
 <span>  demo_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/getwd.html" class="external-link">getwd</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"demos"</span>, <span class="st">"openai"</span><span class="op">)</span>,</span>
 <span>  api_key <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"OVC_API_TOKEN"</span><span class="op">)</span>,</span>
@@ -158,7 +143,7 @@
 <h2 id="openai-batch-workflow-async-pure-r">OpenAI Batch Workflow (Async, Pure R)<a class="anchor" aria-label="anchor" href="#openai-batch-workflow-async-pure-r"></a>
 </h2>
 <p>For long-running OpenAI embedding jobs, use the async batch helpers:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">backend</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/backend_config.html">backend_config</a></span><span class="op">(</span></span>
 <span>  provider <span class="op">=</span> <span class="st">"openai"</span>,</span>
 <span>  model <span class="op">=</span> <span class="st">"text-embedding-3-small"</span></span>
@@ -199,7 +184,7 @@
 <li>all values are cosine distances (<code>1 - cosine</code>)</li>
 </ul>
 <p>To convert this full distance matrix to scores:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/score_reference_cosine.html">score_reference_cosine</a></span><span class="op">(</span></span>
 <span>  distance_parquet <span class="op">=</span> <span class="st">"my_project/distance_reference_cosine/model_id=.../corpus_label=.../reference_label=..."</span>,</span>
 <span>  method <span class="op">=</span> <span class="st">"linear"</span> <span class="co"># or "exponential"</span></span>
@@ -243,9 +228,9 @@
 <div class="dev-status">
 <h2 data-toc-skip>Dev status</h2>
 <ul class="list-unstyled">
-<li><a href="https://doi.org/10.5281/zenodo.19607514" class="external-link"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.19607514.svg" alt="DOI"></a></li>
-<li><a href="https://lifecycle.r-lib.org/articles/stages.html" class="external-link"><img src="https://img.shields.io/badge/lifecycle-experimental-orange.svg" alt="Lifecycle: experimental"></a></li>
-<li><a href="https://opensource.org/licenses/MIT" class="external-link"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a></li>
+<li><a href="https://openalexpro.r-universe.dev/openalexVectorComp" class="external-link"><img src="https://openalexpro.r-universe.dev/openalexVectorComp/badges/version" alt="r-universe"></a></li>
+<li><a href="https://github.com/openalexPro/openalexVectorComp/tree/main" class="external-link"><img src="https://img.shields.io/github/r-package/v/openalexPro/openalexVectorComp/main?label=main" alt="main"></a></li>
+<li><a href="https://github.com/openalexPro/openalexVectorComp/actions/workflows/pr-checks.yml?query=branch%3Amain" class="external-link"><img src="https://img.shields.io/github/actions/workflow/status/openalexPro/openalexVectorComp/pr-checks.yml?branch=main&amp;label=CI%20main" alt="CI main"></a></li>
 <li><a href="https://app.codecov.io/gh/openalexPro/openalexVectorComp" class="external-link"><img src="https://codecov.io/gh/openalexPro/openalexVectorComp/graph/badge.svg" alt="Codecov"></a></li>
 </ul>
 </div>

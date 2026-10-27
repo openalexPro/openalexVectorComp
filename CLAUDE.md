@@ -40,8 +40,9 @@ devtools::check(args = c("--no-manual", "--no-multiarch", "--no-examples", "--ig
 pkgdown::build_site()
 ```
 
-CI (`.github/workflows/pr-checks.yml`) runs `R CMD check` across Ubuntu
-(release/oldrel-1/devel), macOS, and Windows, **skipping vignette
+CI (`.github/workflows/pr-checks.yml`) runs `R CMD check` on pushes to
+`main` and `dev` and on pull requests into `main`, across Ubuntu
+(release/oldrel-1), macOS and Windows (release), **skipping vignette
 execution and examples**. Match this locally before committing.
 
 ## Architecture

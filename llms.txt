@@ -1,10 +1,16 @@
 # openalexVectorComp
 
+[![dev](https://img.shields.io/github/r-package/v/openalexPro/openalexVectorComp/dev?label=dev)](https://github.com/openalexPro/openalexVectorComp/tree/dev)
+[![CI
+dev](https://img.shields.io/github/actions/workflow/status/openalexPro/openalexVectorComp/pr-checks.yml?branch=dev&label=CI%20dev)](https://github.com/openalexPro/openalexVectorComp/actions/workflows/pr-checks.yml?query=branch%3Adev)
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19607514.svg)](https://doi.org/10.5281/zenodo.19607514)
+[![Lifecycle:
+experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html)
+[![License:
+MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **Embedding of Corpora**, implemented in R.
-
-## Version
-
-Current development version: **0.3.0**.
 
 - Embeddings served by **TEI** (Text Embeddings Inference; Hugging
   Face).
@@ -17,17 +23,9 @@ Current development version: **0.3.0**.
   threshold calibration.
 - Works great with DuckDB/Arrow pipelines.
 
-## 0.3.0 Highlights
-
-- Demo defaults now use a shared structure:
-  - `demos/openalex`
-  - `demos/openai`
-- OpenAI demo uses an explicit two-phase async workflow:
-  - render now (submit/poll briefly),
-  - finalize later (status/collect/compare) if batch is still pending.
-- Added tutorial-style demo narratives with clearer explanation of
-  workflow choices, costs/latency trade-offs, and interpretation of
-  direct-vs-batch embedding differences.
+The badges show the released version (r-universe, built from `main`) and
+the development version (`dev`); what changed in each release is in
+[NEWS.md](https://openalexpro.github.io/openalexVectorComp/NEWS.md).
 
 ## Development Continuity
 
@@ -35,15 +33,25 @@ See `DEVELOPMENT_CONTINUITY.md` for design principles, architectural
 decisions, and the required pre-commit update checklist that keeps
 development context continuous for both humans and AI agents.
 
-## Install (local)
+## Installation
+
+Released version, from the openalexPro r-universe:
 
 ``` r
 
-# install.packages("devtools")
-devtools::install_local("openalexVectorComp")
+install.packages(
+  "openalexVectorComp",
+  repos = c("https://openalexpro.r-universe.dev", "https://cloud.r-project.org")
+)
 ```
 
-Or build & install from the zip you downloaded.
+Development version (the `dev` branch), from GitHub:
+
+``` r
+
+# install.packages("remotes")
+remotes::install_github("openalexPro/openalexVectorComp", ref = "dev")
+```
 
 ## Runtime dependencies
 

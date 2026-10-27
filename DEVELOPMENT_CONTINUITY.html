@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">openalexVectorComp</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -39,7 +39,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>openalexVectorComp Development Continuity</h1>
-      <small class="dont-index">Source: <a href="https://github.com/openalexPro/openalexVectorComp/blob/v0.3.4/DEVELOPMENT_CONTINUITY.md" class="external-link"><code>DEVELOPMENT_CONTINUITY.md</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/openalexPro/openalexVectorComp/blob/main/DEVELOPMENT_CONTINUITY.md" class="external-link"><code>DEVELOPMENT_CONTINUITY.md</code></a></small>
     </div>
 
 <div id="openalexvectorcomp-development-continuity" class="section level1">
@@ -102,6 +102,13 @@
 <li><p>Alternatives considered: provider-specific root folders with no shared parent.</p></li>
 <li><p>Impact: Cleaner workspace structure; updated README examples.</p></li>
 <li><p>Follow-up tasks: ensure any automation scripts assume new defaults.</p></li>
+<li><p>Date: 2026-10-27</p></li>
+<li><p>Scope: Skipping unchanged rows with <code>delete_existing = FALSE</code> (<code><a href="reference/embed_corpus.html">embed_corpus()</a></code>, <code><a href="reference/batch_submit_openai.html">batch_submit_openai()</a></code>, <code><a href="reference/batch_collect_openai.html">batch_collect_openai()</a></code>)</p></li>
+<li><p>Decision: Both read existing hashes through <code>.ovc_load_existing_hash()</code>, which opens <code>model_dir/label=&lt;label&gt;</code> directly. <code><a href="reference/embed_corpus.html">embed_corpus()</a></code> appends new shards after the existing ones (<code>.ovc_next_embed_batch_index()</code>), like <code><a href="reference/batch_collect_openai.html">batch_collect_openai()</a></code>. After writing, both call <code>.ovc_prune_superseded_rows()</code>, which removes from older <code>batch=&lt;n&gt;</code> shards every id present in a newer shard (deleting emptied shard files and folders), so each id is stored once per label folder. The prune covers all shards, so it also removes duplicates left by earlier versions. <code>.ovc_load_existing_hash()</code> still prefers the newest shard’s hash as a safety net for folders not yet pruned.</p></li>
+<li><p>Why: The label was passed as the <code>schema</code> argument of <code>open_dataset()</code>, so no hashes were ever loaded and everything was re-embedded / resubmitted. Once skipping works, restarting at <code>batch=1</code> would overwrite unchanged rows, and keeping old rows would give downstream distance/score functions duplicate ids.</p></li>
+<li><p>Alternatives considered: rewriting the whole label partition on each run (rejected: re-embeds everything); keeping superseded rows and de-duplicating in every reader (rejected: the user chose removal).</p></li>
+<li><p>Impact: Re-runs only embed new/changed rows; each id appears once per label. Write first, prune after: an interruption leaves at most a temporary duplicate, never a lost embedding. Pruned shards are replaced via a temporary file plus rename.</p></li>
+<li><p>Follow-up tasks: the prune reads the <code>id</code> column of every shard on each write run; revisit if label folders grow very large.</p></li>
 </ul></div>
 </div>
 <div class="section level2">
