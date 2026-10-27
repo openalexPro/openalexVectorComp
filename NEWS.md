@@ -2,6 +2,23 @@
 
 ## development version
 
+### Bug Fixes
+
+- With `delete_existing = FALSE`, `embed_corpus()` and
+  `batch_submit_openai()` are supposed to skip rows that already have
+  embeddings with the same text hash. They never did: the existing
+  embeddings were opened with the label folder passed as the `schema`
+  argument of `arrow::open_dataset()`, which always failed silently. As a
+  result every run re-embedded the whole corpus, and `batch_submit_openai()`
+  resubmitted already-embedded rows as new (paid) OpenAI batch jobs. The
+  existing `label=<label>` folder is now read correctly and unchanged rows
+  are skipped.
+- `embed_corpus()` with `delete_existing = FALSE` now writes new shards
+  after the existing `batch=<n>` folders instead of starting at `batch=1`
+  again, so re-embedding only the changed rows no longer overwrites shards
+  that hold unchanged rows. When a row has been re-embedded, the hash from
+  the newest shard is used, so it is not embedded again on the next run.
+
 ## 0.3.4
 
 ### Bug Fixes

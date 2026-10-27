@@ -731,7 +731,6 @@ testthat::test_that("batch_collect_openai reports collected rows when verbose", 
 })
 
 testthat::test_that("submit skips rows already embedded with the same text hash", {
-  skip("Known bug: .ovc_load_existing_hash passes the label as `schema` to open_dataset, so existing hashes are never loaded (batch_openai_helpers.R:149)")
   proj <- make_openai_batch_project(2)
   backend <- fake_openai_backend()
   prep <- clean_abstract_for_embedding(arrow::read_parquet(file.path(proj, "corpus", "corpus.parquet")))

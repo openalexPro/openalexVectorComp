@@ -665,7 +665,6 @@ testthat::test_that("embed_corpus dry_run parses or reuses cleaned title/abstrac
 })
 
 testthat::test_that("embed_corpus does not re-embed unchanged rows when delete_existing = FALSE", {
-  skip("Known bug: open_dataset(model_dir, 'label=..') passes the label as `schema`, so existing hashes are never loaded (embed_corpus.R:181)")
   proj <- make_tmp_corpus_project()
   backend <- openalexVectorComp::backend_config(provider = "hf")
   n_embedded <- 0L
@@ -683,4 +682,33 @@ testthat::test_that("embed_corpus does not re-embed unchanged rows when delete_e
   testthat::expect_identical(n_embedded, 2L)
   run()
   testthat::expect_identical(n_embedded, 2L)
+})
+
+testthat::test_that("embed_corpus appends changed rows without overwriting existing shards", {
+  proj <- make_tmp_corpus_project()
+  backend <- openalexVectorComp::backend_config(provider = "hf")
+  run <- function() {
+    testthat::with_mocked_bindings(
+      openalexVectorComp::embed_corpus(project_dir = proj, backend = backend, verbose = FALSE),
+      embed_texts = fake_embed_texts,
+      .package = "openalexVectorComp"
+    )
+  }
+  model_dir <- run()
+  corpus <- data.frame(
+    id = c("W1", "W2"), title = c("Alpha", "Beta changed"),
+    abstract = c("A abstract", "B abstract"), stringsAsFactors = FALSE
+  )
+  unlink(file.path(proj, "corpus"), recursive = TRUE)
+  arrow::write_dataset(corpus, path = file.path(proj, "corpus"), format = "parquet")
+  run()
+  label_dir <- file.path(model_dir, "label=corpus")
+  testthat::expect_setequal(list.files(label_dir), c("batch=1", "batch=2"))
+  b1 <- arrow::read_parquet(list.files(file.path(label_dir, "batch=1"), full.names = TRUE))
+  b2 <- arrow::read_parquet(list.files(file.path(label_dir, "batch=2"), full.names = TRUE))
+  testthat::expect_setequal(b1$id, c("W1", "W2"))
+  testthat::expect_identical(b2$id, "W2")
+  # The newest shard's hash wins, so a third run embeds nothing.
+  run()
+  testthat::expect_setequal(list.files(label_dir), c("batch=1", "batch=2"))
 })

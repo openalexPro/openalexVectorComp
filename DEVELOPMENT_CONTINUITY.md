@@ -115,6 +115,26 @@ Template:
 - Impact: Cleaner workspace structure; updated README examples.
 - Follow-up tasks: ensure any automation scripts assume new defaults.
 
+- Date: 2026-10-27
+- Scope: Skipping unchanged rows with `delete_existing = FALSE`
+  (`embed_corpus()`, `batch_submit_openai()`)
+- Decision: Both read existing hashes through `.ovc_load_existing_hash()`,
+  which opens `model_dir/label=<label>` directly and keeps the hash from the
+  newest `batch=<n>` shard per id. `embed_corpus()` appends new shards after
+  the existing ones (`.ovc_next_embed_batch_index()`), like
+  `batch_collect_openai()` already did.
+- Why: The label was passed as the `schema` argument of `open_dataset()`, so
+  no hashes were ever loaded and everything was re-embedded / resubmitted.
+  Once skipping works, starting at `batch=1` again would overwrite shards
+  holding unchanged rows, and picking an arbitrary duplicate hash would
+  re-embed changed rows on every run.
+- Alternatives considered: rewriting the whole label partition on each run
+  (rejected: re-embeds everything, defeats the point of skipping).
+- Impact: Re-runs only embed new/changed rows. A changed row is stored twice
+  in the label partition (old and new shard).
+- Follow-up tasks: decide whether readers should de-duplicate by newest
+  shard, or whether superseded rows should be compacted away.
+
 ## 5. Pre-Commit Update Checklist (Required)
 
 Before committing, update this file:

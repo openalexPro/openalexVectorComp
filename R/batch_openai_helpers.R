@@ -147,8 +147,7 @@
   existing_hash <- stats::setNames(character(), character())
   idx_ds <- try(
     arrow::open_dataset(
-      model_dir,
-      paste0("label=", label_part),
+      file.path(model_dir, paste0("label=", label_part)),
       factory_options = list(exclude_invalid_files = TRUE)
     ),
     silent = TRUE
@@ -160,12 +159,17 @@
   if (is.null(hash_col) || !"id" %in% idx_cols) return(existing_hash)
 
   idx_df <- idx_ds |>
-    dplyr::select(id, dplyr::all_of(hash_col)) |>
+    dplyr::select(id, dplyr::all_of(hash_col), dplyr::any_of("batch")) |>
     dplyr::collect()
   if (!nrow(idx_df)) return(existing_hash)
 
   names(idx_df)[2] <- "text_hash"
   idx_df <- idx_df[!is.na(idx_df$id) & !is.na(idx_df$text_hash), , drop = FALSE]
+  # Re-embedded rows are appended in newer batch=<n> shards; keep the newest hash per id.
+  if ("batch" %in% names(idx_df)) {
+    idx_df <- idx_df[order(idx_df$batch), , drop = FALSE]
+    idx_df <- idx_df[!duplicated(idx_df$id, fromLast = TRUE), , drop = FALSE]
+  }
   if (!nrow(idx_df)) return(existing_hash)
   stats::setNames(as.character(idx_df$text_hash), as.character(idx_df$id))
 }
