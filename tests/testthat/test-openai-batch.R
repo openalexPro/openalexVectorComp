@@ -748,3 +748,42 @@ testthat::test_that("submit skips rows already embedded with the same text hash"
   )
   testthat::expect_identical(out$submitted_rows, 0L)
 })
+
+testthat::test_that("collect removes superseded rows from older shards", {
+  proj <- make_openai_batch_project(2)
+  backend <- fake_openai_backend()
+  label_dir <- file.path(proj, "embeddings", "model_id=text-embedding-3-small", "label=corpus")
+  # Older shard: stale W1/W2 (hash differs, so both get resubmitted) plus W9.
+  dir.create(file.path(label_dir, "batch=1"), recursive = TRUE)
+  arrow::write_parquet(
+    data.frame(id = c("W1", "W2", "W9"), text_hash = "old", V1 = 0, V2 = 0),
+    file.path(label_dir, "batch=1", "embeddings-00001.parquet")
+  )
+  submit <- testthat::with_mocked_bindings(
+    openalexVectorComp::batch_submit_openai(project_dir = proj, backend = backend, verbose = FALSE),
+    .openai_batch_upload_file = function(backend, file_path) "file_1",
+    .openai_batch_create = function(...) list(id = "job_1", status = "in_progress"),
+    .package = "openalexVectorComp"
+  )
+  testthat::expect_identical(submit$submitted_rows, 2L)
+  state <- jsonlite::fromJSON(submit$state_file, simplifyVector = FALSE)
+  manifest <- arrow::read_parquet(state$jobs[[1]]$manifest_parquet)
+  lines <- vapply(manifest$custom_id, function(cid) {
+    jsonlite::toJSON(list(custom_id = cid, embedding = c(1, 1)), auto_unbox = TRUE)
+  }, character(1))
+  testthat::with_mocked_bindings(
+    batch_collect_openai(proj, backend = backend, verbose = FALSE),
+    .openai_batch_get = function(backend, job_id) list(status = "completed", output_file_id = "of"),
+    .openai_batch_download_file = function(backend, file_id, dest) {
+      writeLines(lines, dest)
+      invisible(dest)
+    },
+    .package = "openalexVectorComp"
+  )
+  d <- as.data.frame(arrow::open_dataset(label_dir))
+  testthat::expect_identical(sort(d$id), c("W1", "W2", "W9"))
+  testthat::expect_identical(d$batch[d$id == "W9"], 1L)
+  testthat::expect_true(all(d$batch[d$id != "W9"] == 2L))
+  testthat::expect_true(all(d$V1[d$id != "W9"] == 1))
+  testthat::expect_false(any(d$text_hash[d$id != "W9"] == "old"))
+})

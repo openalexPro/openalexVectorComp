@@ -684,31 +684,68 @@ testthat::test_that("embed_corpus does not re-embed unchanged rows when delete_e
   testthat::expect_identical(n_embedded, 2L)
 })
 
-testthat::test_that("embed_corpus appends changed rows without overwriting existing shards", {
+testthat::test_that("embed_corpus re-embeds changed rows and keeps each id once", {
   proj <- make_tmp_corpus_project()
   backend <- openalexVectorComp::backend_config(provider = "hf")
-  run <- function() {
+  run_no <- 0L
+  run <- function(label = "corpus") {
+    run_no <<- run_no + 1L
     testthat::with_mocked_bindings(
-      openalexVectorComp::embed_corpus(project_dir = proj, backend = backend, verbose = FALSE),
-      embed_texts = fake_embed_texts,
+      openalexVectorComp::embed_corpus(
+        project_dir = proj, backend = backend, label = label, verbose = FALSE
+      ),
+      embed_texts = function(texts, backend) {
+        matrix(c(run_no, 1), nrow = length(texts), ncol = 2, byrow = TRUE,
+               dimnames = list(NULL, c("V1", "V2")))
+      },
       .package = "openalexVectorComp"
     )
   }
-  model_dir <- run()
-  corpus <- data.frame(
-    id = c("W1", "W2"), title = c("Alpha", "Beta changed"),
-    abstract = c("A abstract", "B abstract"), stringsAsFactors = FALSE
-  )
-  unlink(file.path(proj, "corpus"), recursive = TRUE)
-  arrow::write_dataset(corpus, path = file.path(proj, "corpus"), format = "parquet")
-  run()
+  set_w2_title <- function(title) {
+    unlink(file.path(proj, "corpus"), recursive = TRUE)
+    arrow::write_dataset(
+      data.frame(id = c("W1", "W2"), title = c("Alpha", title),
+                 abstract = c("A abstract", "B abstract"), stringsAsFactors = FALSE),
+      path = file.path(proj, "corpus"), format = "parquet"
+    )
+  }
+  read_label <- function() {
+    as.data.frame(arrow::open_dataset(label_dir))[, c("id", "text_hash", "V1", "batch")]
+  }
+
+  model_dir <- run() # batch=1: W1, W2
   label_dir <- file.path(model_dir, "label=corpus")
-  testthat::expect_setequal(list.files(label_dir), c("batch=1", "batch=2"))
-  b1 <- arrow::read_parquet(list.files(file.path(label_dir, "batch=1"), full.names = TRUE))
-  b2 <- arrow::read_parquet(list.files(file.path(label_dir, "batch=2"), full.names = TRUE))
-  testthat::expect_setequal(b1$id, c("W1", "W2"))
-  testthat::expect_identical(b2$id, "W2")
-  # The newest shard's hash wins, so a third run embeds nothing.
+  hash_w2_v1 <- read_label()$text_hash[read_label()$id == "W2"]
+
+  # Changed W2 goes to batch=2; batch=1 is rewritten without it.
+  set_w2_title("Beta changed")
   run()
   testthat::expect_setequal(list.files(label_dir), c("batch=1", "batch=2"))
+  d <- read_label()
+  testthat::expect_identical(sort(d$id), c("W1", "W2"))
+  testthat::expect_identical(d$batch[d$id == "W1"], 1L)
+  testthat::expect_identical(d$V1[d$id == "W2"], 2)
+  testthat::expect_false(d$text_hash[d$id == "W2"] == hash_w2_v1)
+
+  # Changing W2 again empties batch=2, which is removed.
+  set_w2_title("Beta changed twice")
+  run()
+  testthat::expect_setequal(list.files(label_dir), c("batch=1", "batch=3"))
+  d <- read_label()
+  testthat::expect_identical(sort(d$id), c("W1", "W2"))
+  testthat::expect_identical(d$V1[d$id == "W2"], 3)
+
+  # Unchanged corpus: nothing is embedded or written.
+  run()
+  testthat::expect_setequal(list.files(label_dir), c("batch=1", "batch=3"))
+
+  # Downstream distances see each corpus id once.
+  run(label = "reference")
+  out_dir <- openalexVectorComp::distance_reference_cosine(
+    project_dir = proj, embeddings_dir = basename(model_dir),
+    corpus_label = "corpus", reference_label = "reference", verbose = FALSE
+  )
+  mat <- arrow::read_parquet(file.path(out_dir, "pairwise-cosine.parquet"))
+  testthat::expect_length(mat$id, 3L)
+  testthat::expect_setequal(mat$id, c("centroid", "W1", "W2"))
 })

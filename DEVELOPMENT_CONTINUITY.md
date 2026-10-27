@@ -117,23 +117,31 @@ Template:
 
 - Date: 2026-10-27
 - Scope: Skipping unchanged rows with `delete_existing = FALSE`
-  (`embed_corpus()`, `batch_submit_openai()`)
+  (`embed_corpus()`, `batch_submit_openai()`, `batch_collect_openai()`)
 - Decision: Both read existing hashes through `.ovc_load_existing_hash()`,
-  which opens `model_dir/label=<label>` directly and keeps the hash from the
-  newest `batch=<n>` shard per id. `embed_corpus()` appends new shards after
-  the existing ones (`.ovc_next_embed_batch_index()`), like
-  `batch_collect_openai()` already did.
+  which opens `model_dir/label=<label>` directly. `embed_corpus()` appends
+  new shards after the existing ones (`.ovc_next_embed_batch_index()`), like
+  `batch_collect_openai()`. After writing, both call
+  `.ovc_prune_superseded_rows()`, which removes from older `batch=<n>`
+  shards every id present in a newer shard (deleting emptied shard files and
+  folders), so each id is stored once per label folder. The prune covers all
+  shards, so it also removes duplicates left by earlier versions.
+  `.ovc_load_existing_hash()` still prefers the newest shard's hash as a
+  safety net for folders not yet pruned.
 - Why: The label was passed as the `schema` argument of `open_dataset()`, so
   no hashes were ever loaded and everything was re-embedded / resubmitted.
-  Once skipping works, starting at `batch=1` again would overwrite shards
-  holding unchanged rows, and picking an arbitrary duplicate hash would
-  re-embed changed rows on every run.
+  Once skipping works, restarting at `batch=1` would overwrite unchanged
+  rows, and keeping old rows would give downstream distance/score functions
+  duplicate ids.
 - Alternatives considered: rewriting the whole label partition on each run
-  (rejected: re-embeds everything, defeats the point of skipping).
-- Impact: Re-runs only embed new/changed rows. A changed row is stored twice
-  in the label partition (old and new shard).
-- Follow-up tasks: decide whether readers should de-duplicate by newest
-  shard, or whether superseded rows should be compacted away.
+  (rejected: re-embeds everything); keeping superseded rows and
+  de-duplicating in every reader (rejected: the user chose removal).
+- Impact: Re-runs only embed new/changed rows; each id appears once per
+  label. Write first, prune after: an interruption leaves at most a
+  temporary duplicate, never a lost embedding. Pruned shards are replaced
+  via a temporary file plus rename.
+- Follow-up tasks: the prune reads the `id` column of every shard on each
+  write run; revisit if label folders grow very large.
 
 ## 5. Pre-Commit Update Checklist (Required)
 

@@ -349,6 +349,9 @@ embed_corpus <- function(
   if (!is.null(progress_id)) {
     cli::cli_progress_done(id = progress_id)
   }
+  if (!delete_existing && shard_idx > shard_offset) {
+    .ovc_prune_superseded_rows(label_dir)
+  }
   if (isTRUE(dry_run) && length(dry_run_preview)) {
     preview_all <- do.call(rbind, dry_run_preview)
     arrow::write_parquet(preview_all, dry_run_file)

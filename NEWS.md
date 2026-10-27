@@ -13,11 +13,16 @@
   resubmitted already-embedded rows as new (paid) OpenAI batch jobs. The
   existing `label=<label>` folder is now read correctly and unchanged rows
   are skipped.
-- `embed_corpus()` with `delete_existing = FALSE` now writes new shards
-  after the existing `batch=<n>` folders instead of starting at `batch=1`
-  again, so re-embedding only the changed rows no longer overwrites shards
-  that hold unchanged rows. When a row has been re-embedded, the hash from
-  the newest shard is used, so it is not embedded again on the next run.
+- When a row's text has changed and it is embedded again, its old row is
+  now removed, so each id appears exactly once per `label=<label>` folder
+  and distance and score functions no longer see duplicate ids. This applies
+  to `embed_corpus()` with `delete_existing = FALSE` and to
+  `batch_collect_openai()`. New rows are written to a new `batch=<n>` folder
+  first (`embed_corpus()` no longer restarts at `batch=1`, which would have
+  overwritten unchanged rows); only then are the old rows removed from older
+  shards. Shards and `batch=` folders left empty are deleted. Duplicates left
+  by earlier versions are cleaned up the next time new embeddings are written
+  to that label.
 
 ## 0.3.4
 

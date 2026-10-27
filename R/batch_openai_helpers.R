@@ -165,7 +165,8 @@
 
   names(idx_df)[2] <- "text_hash"
   idx_df <- idx_df[!is.na(idx_df$id) & !is.na(idx_df$text_hash), , drop = FALSE]
-  # Re-embedded rows are appended in newer batch=<n> shards; keep the newest hash per id.
+  # Writers prune superseded rows, but folders from older versions or an
+  # interrupted prune can still hold duplicates: keep the newest shard's hash.
   if ("batch" %in% names(idx_df)) {
     idx_df <- idx_df[order(idx_df$batch), , drop = FALSE]
     idx_df <- idx_df[!duplicated(idx_df$id, fromLast = TRUE), , drop = FALSE]
@@ -410,4 +411,36 @@
   nums <- nums[is.finite(nums)]
   if (!length(nums)) return(1L)
   as.integer(max(nums) + 1L)
+}
+
+# Keep each id once per label folder: drop rows from older batch=<n> shards
+# whose id also appears in a newer shard (newest wins), deleting shard files and
+# batch= folders that end up empty. Call only after new shards are written, so
+# an interruption leaves at most a temporary duplicate, never a lost embedding.
+# ponytail: reads the id column of every shard on each write run; index ids if
+# label folders grow to many large shards.
+.ovc_prune_superseded_rows <- function(label_dir) {
+  b <- list.dirs(label_dir, full.names = FALSE, recursive = FALSE)
+  b <- b[grepl("^batch=[0-9]+$", b)]
+  if (length(b) < 2L) return(invisible(NULL))
+  b <- b[order(as.integer(sub("^batch=", "", b)), decreasing = TRUE)]
+  seen <- character()
+  for (d in file.path(label_dir, b)) {
+    for (f in list.files(d, pattern = "[.]parquet$", full.names = TRUE)) {
+      ids <- as.character(arrow::read_parquet(f, col_select = "id")$id)
+      drop <- ids %in% seen
+      seen <- union(seen, ids)
+      if (!any(drop)) next
+      if (all(drop)) {
+        unlink(f)
+        next
+      }
+      tmp <- file.path(d, paste0(".", basename(f), ".tmp"))
+      tbl <- arrow::read_parquet(f, as_data_frame = FALSE)
+      arrow::write_parquet(tbl[!drop, ], tmp)
+      if (!file.rename(tmp, f)) stop("Could not replace pruned shard: ", f)
+    }
+    if (!length(list.files(d, all.files = TRUE, no.. = TRUE))) unlink(d, recursive = TRUE)
+  }
+  invisible(NULL)
 }
