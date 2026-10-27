@@ -1,5 +1,5 @@
 pandoc: 3.8.3
-pkgdown: 2.2.0
+pkgdown: 2.2.1
 pkgdown_sha: ~
 articles:
   abstract-cleaning: abstract-cleaning.html
@@ -9,7 +9,7 @@ articles:
   simplestart: simplestart.html
   specter2-setup: specter2-setup.html
   tei-server-operations: tei-server-operations.html
-last_built: 2026-06-03T13:48Z
+last_built: 2026-10-27T15:40Z
 urls:
   reference: https://openalexpro.github.io/openalexVectorComp/reference
   article: https://openalexpro.github.io/openalexVectorComp/articles
