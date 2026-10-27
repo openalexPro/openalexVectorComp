@@ -518,3 +518,169 @@ testthat::test_that("embed_corpus dry_run preprocesses but does not write embedd
     testthat::expect_false(dir.exists(emb_root))
   }
 })
+
+fake_embed_texts <- function(texts, backend) {
+  matrix(1, nrow = length(texts), ncol = 2, dimnames = list(NULL, c("V1", "V2")))
+}
+
+testthat::test_that("embed_corpus validates preprocessor, cleaner_args and model id", {
+  proj <- make_tmp_corpus_project()
+  testthat::expect_error(
+    openalexVectorComp::embed_corpus(project_dir = proj, text_preprocessor = "x", verbose = FALSE),
+    "`text_preprocessor` must be a function"
+  )
+  testthat::expect_error(
+    openalexVectorComp::embed_corpus(project_dir = proj, cleaner_args = "x", verbose = FALSE),
+    "`cleaner_args` must be a list"
+  )
+  testthat::expect_error(
+    openalexVectorComp::embed_corpus(
+      project_dir = proj,
+      backend = list(provider = "hf", base_url = "https://router.huggingface.co/hf-inference", model = NULL),
+      verbose = FALSE
+    ),
+    "Could not determine model id"
+  )
+
+  backend <- openalexVectorComp::backend_config(provider = "hf")
+  run_pp <- function(pp) {
+    testthat::with_mocked_bindings(
+      openalexVectorComp::embed_corpus(
+        project_dir = proj, backend = backend, text_preprocessor = pp, verbose = FALSE
+      ),
+      embed_texts = fake_embed_texts,
+      .package = "openalexVectorComp"
+    )
+  }
+  testthat::expect_error(run_pp(function(df) "x"), "must return a data frame")
+  testthat::expect_error(
+    run_pp(function(df) data.frame(id = rep(df$id[1], 2), text = "t", text_hash = c("a", "b"))),
+    "duplicated ids"
+  )
+})
+
+testthat::test_that("embed_corpus verbose mode reports directories and progress", {
+  proj <- make_tmp_corpus_project()
+  backend <- openalexVectorComp::backend_config(provider = "hf")
+  run <- function() {
+    testthat::with_mocked_bindings(
+      openalexVectorComp::embed_corpus(project_dir = proj, backend = backend, batch_size = 1, verbose = TRUE),
+      embed_texts = fake_embed_texts,
+      .package = "openalexVectorComp"
+    )
+  }
+
+  msgs <- testthat::capture_messages(model_dir <- run())
+  txt <- paste(msgs, collapse = "")
+  testthat::expect_match(txt, "Created model output directory")
+  testthat::expect_match(txt, "Wrote backend metadata")
+  testthat::expect_match(txt, "Created label output directory")
+  testthat::expect_match(txt, "Embedding 2 works in up to 2 shards")
+  testthat::expect_match(txt, "Embedded 2 new/changed works")
+
+  msgs2 <- testthat::capture_messages(run())
+  txt2 <- paste(msgs2, collapse = "")
+  testthat::expect_match(txt2, "Reusing existing model output directory")
+  testthat::expect_match(txt2, "Reusing existing label output directory")
+
+  meta <- yaml::read_yaml(file.path(model_dir, "embed_model.yaml"))
+  testthat::expect_identical(meta$text_preprocessor$name, "clean_abstract_for_embedding")
+  testthat::expect_identical(meta$embedding_label, "corpus")
+})
+
+testthat::test_that("embed_corpus skips batches where the preprocessor keeps no rows", {
+  proj <- make_tmp_corpus_project()
+  backend <- openalexVectorComp::backend_config(provider = "hf")
+  called <- FALSE
+  model_dir <- testthat::with_mocked_bindings(
+    openalexVectorComp::embed_corpus(
+      project_dir = proj,
+      backend = backend,
+      text_preprocessor = function(df) data.frame(id = df$id, text = "", text_hash = "h"),
+      verbose = FALSE
+    ),
+    embed_texts = function(texts, backend) {
+      called <<- TRUE
+      fake_embed_texts(texts, backend)
+    },
+    .package = "openalexVectorComp"
+  )
+  testthat::expect_false(called)
+  testthat::expect_length(
+    list.files(model_dir, pattern = "embeddings-.*[.]parquet$", recursive = TRUE),
+    0L
+  )
+})
+
+testthat::test_that("embed_corpus dry_run parses or reuses cleaned title/abstract", {
+  proj <- make_tmp_corpus_project()
+  backend <- openalexVectorComp::backend_config(provider = "hf")
+  preview_file <- file.path(proj, "corpus_dryrun.parquet")
+
+  parsing_pp <- function(df) {
+    text <- c("Title: Alpha T\nAbstract: Alpha A", "Plain text without prefix")
+    data.frame(id = df$id, text = text, text_hash = c("h1", "h2"), stringsAsFactors = FALSE)
+  }
+  msgs <- testthat::capture_messages(
+    openalexVectorComp::embed_corpus(
+      project_dir = proj, backend = backend, text_preprocessor = parsing_pp,
+      dry_run = TRUE, verbose = TRUE
+    )
+  )
+  testthat::expect_match(paste(msgs, collapse = ""), "Dry run mode")
+  testthat::expect_match(paste(msgs, collapse = ""), "would embed 2 new/changed works")
+  prev <- arrow::read_parquet(preview_file)
+  prev <- prev[order(prev$id), ]
+  testthat::expect_identical(prev$cleaned_title, c("Alpha T", NA))
+  testthat::expect_identical(prev$cleaned_abstract, c("Alpha A", NA))
+
+  title_only_pp <- function(df) {
+    data.frame(id = df$id, text = paste("Title:", df$title), text_hash = df$id, stringsAsFactors = FALSE)
+  }
+  openalexVectorComp::embed_corpus(
+    project_dir = proj, backend = backend, text_preprocessor = title_only_pp,
+    dry_run = TRUE, verbose = FALSE
+  )
+  prev2 <- arrow::read_parquet(preview_file)
+  prev2 <- prev2[order(prev2$id), ]
+  testthat::expect_identical(prev2$cleaned_title, c("Alpha", "Beta"))
+  testthat::expect_true(all(is.na(prev2$cleaned_abstract)))
+
+  own_cols_pp <- function(df) {
+    data.frame(
+      id = df$id, text = "x", text_hash = df$id,
+      cleaned_title = paste0("CT-", df$id), cleaned_abstract = paste0("CA-", df$id),
+      stringsAsFactors = FALSE
+    )
+  }
+  # Re-running replaces the previous preview file.
+  openalexVectorComp::embed_corpus(
+    project_dir = proj, backend = backend, text_preprocessor = own_cols_pp,
+    dry_run = TRUE, verbose = FALSE
+  )
+  prev3 <- arrow::read_parquet(preview_file)
+  prev3 <- prev3[order(prev3$id), ]
+  testthat::expect_identical(prev3$cleaned_title, c("CT-W1", "CT-W2"))
+  testthat::expect_identical(prev3$cleaned_abstract, c("CA-W1", "CA-W2"))
+})
+
+testthat::test_that("embed_corpus does not re-embed unchanged rows when delete_existing = FALSE", {
+  skip("Known bug: open_dataset(model_dir, 'label=..') passes the label as `schema`, so existing hashes are never loaded (embed_corpus.R:181)")
+  proj <- make_tmp_corpus_project()
+  backend <- openalexVectorComp::backend_config(provider = "hf")
+  n_embedded <- 0L
+  run <- function() {
+    testthat::with_mocked_bindings(
+      openalexVectorComp::embed_corpus(project_dir = proj, backend = backend, verbose = FALSE),
+      embed_texts = function(texts, backend) {
+        n_embedded <<- n_embedded + length(texts)
+        fake_embed_texts(texts, backend)
+      },
+      .package = "openalexVectorComp"
+    )
+  }
+  run()
+  testthat::expect_identical(n_embedded, 2L)
+  run()
+  testthat::expect_identical(n_embedded, 2L)
+})

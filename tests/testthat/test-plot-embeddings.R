@@ -126,3 +126,14 @@ testthat::test_that("plot embedding functions validate id csv schema and embeddi
     "No embedding columns"
   )
 })
+
+testthat::test_that("plot_embeddings_umap errors when no embedding columns exist", {
+  fx <- make_plot_embeddings_fixture()
+  no_v <- file.path(dirname(fx$emb_dir), "no_v")
+  dir.create(no_v)
+  arrow::write_parquet(data.frame(id = c("W1", "W2"), x = 1), file.path(no_v, "e.parquet"))
+  testthat::expect_error(
+    plot_embeddings_umap(embeddings = no_v, labels = fx$labels_csv),
+    "No embedding columns"
+  )
+})
