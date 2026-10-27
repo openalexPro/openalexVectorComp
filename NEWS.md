@@ -1,6 +1,6 @@
 # openalexVectorComp news
 
-## development version
+## 0.3.5
 
 ### Bug Fixes
 
