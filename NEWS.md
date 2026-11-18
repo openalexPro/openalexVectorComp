@@ -1,6 +1,8 @@
 # openalexVectorComp news
 
-## development version
+## 0.3.6
+
+\-\ Citation\:\ \`citation\(\"openalexVectorComp\"\)\`\ now\ cites\ the\ package\ with\ its\ Zenodo\ DOI\ and\,\ separately\,\ the\ openalexPro\ ecosystem\.\ Added\ \`CITATION\.cff\`\ \(GitHub\ \"Cite\ this\ repository\"\)\ and\ \`\.zenodo\.json\`\ \(Zenodo\ metadata\,\ linking\ the\ related\ ecosystem\ packages\)\.\ The\ author\'s\ ORCID\ is\ in\ \`DESCRIPTION\`\.
 
 ## 0.3.5
 
