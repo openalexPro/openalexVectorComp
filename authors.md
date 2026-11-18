@@ -8,7 +8,7 @@
 ## Citation
 
 Source:
-[`inst/CITATION`](https://github.com/openalexPro/openalexVectorComp/blob/main/inst/CITATION)
+[`inst/CITATION`](https://github.com/openalexPro/openalexVectorComp/blob/v0.3.6/inst/CITATION)
 
 Krug, R. M. (2026). openalexVectorComp: Embedding Vectorization and
 Distance-Based Scoring Workflows. R package version 0.3.6.
