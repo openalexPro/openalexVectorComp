@@ -3,22 +3,32 @@
 ## Authors
 
 - **Rainer M Krug**. Author, maintainer.
-
-- **ChatGPT Assistant**. Contributor.
+  [](https://orcid.org/0000-0002-7490-0066)
 
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/openalexPro/openalexVectorComp/blob/v0.3.5/DESCRIPTION)
+[`inst/CITATION`](https://github.com/openalexPro/openalexVectorComp/blob/main/inst/CITATION)
 
-Krug R (2026). *openalexVectorComp: Embedding Vectorization and
-Distance-Based Scoring Workflows*. R package version 0.3.5,
-<https://github.com/openalexPro/openalexVectorComp>.
+Krug, R. M. (2026). openalexVectorComp: Embedding Vectorization and
+Distance-Based Scoring Workflows. R package version 0.3.6.
+https://doi.org/10.5281/zenodo.19607514
 
-    @Manual{,
-      title = {openalexVectorComp: Embedding Vectorization and Distance-Based Scoring Workflows},
+    @Manual{openalexVectorComp,
+      title = {{openalexVectorComp}: Embedding Vectorization and Distance-Based Scoring Workflows},
       author = {Rainer M Krug},
       year = {2026},
-      note = {R package version 0.3.5},
+      note = {R package version 0.3.6},
+      doi = {10.5281/zenodo.19607514},
       url = {https://github.com/openalexPro/openalexVectorComp},
+    }
+
+Krug, R. M. (2026). The openalexPro ecosystem: R packages for
+large-scale work with OpenAlex. https://openalexpro.github.io/
+
+    @Misc{openalexProEcosystem,
+      title = {The {openalexPro} ecosystem: R packages for large-scale work with OpenAlex},
+      author = {Rainer M Krug},
+      year = {2026},
+      url = {https://openalexpro.github.io/},
     }
