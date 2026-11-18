@@ -1,0 +1,19 @@
+{
+  "title": "openalexVectorComp: Embedding Vectorization and Distance-Based Scoring Workflows",
+  "upload_type": "software",
+  "creators": [
+    {
+      "name": "Krug, Rainer M",
+      "orcid": "0000-0002-7490-0066"
+    }
+  ],
+  "license": "MIT",
+  "keywords": ["OpenAlex", "bibliometrics", "R", "embeddings", "text vectorization", "openalexPro ecosystem"],
+  "related_identifiers": [
+    {
+      "identifier": "https://openalexpro.github.io/",
+      "relation": "isPartOf",
+      "resource_type": "software"
+    }
+  ]
+}

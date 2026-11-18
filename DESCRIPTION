@@ -2,13 +2,9 @@ Package: openalexVectorComp
 Type: Package
 Title: Embedding Vectorization and Distance-Based Scoring Workflows
 Version: 0.3.5.9000
-Authors@R: c(
-    person(given = "Rainer M", family = "Krug", role = c("aut", "cre"), email = "Rainer@krugs.de"),
-    person(given = "ChatGPT", family = "Assistant", role = "ctb")
-  )
-Author: Rainer M Krug [aut, cre],
-  ChatGPT Assistant [ctb]
-Maintainer: Rainer M Krug <Rainer@krugs.de>
+Authors@R:
+    person("Rainer M", "Krug", , "Rainer@krugs.de", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-7490-0066"))
 Description: R-first orchestration for text vectorization (embeddings),
     embedding distance computation, and distance-based scoring workflows.
     Supports backend-neutral embedding providers (HF, OpenAI, TEI),
