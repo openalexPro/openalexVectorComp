@@ -16,3 +16,5 @@
 ^pkgdown$
 ^\.github$
 ^_site$
+^CITATION\.cff$
+^\.zenodo\.json$
